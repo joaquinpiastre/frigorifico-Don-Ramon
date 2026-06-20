@@ -38,3 +38,84 @@ CREATE TABLE IF NOT EXISTS gps_points (
 );
 
 CREATE INDEX IF NOT EXISTS idx_gps_points_unidad_ts ON gps_points (unidad_id, timestamp_ms DESC);
+
+-- Stock de reses, clientes, ventas y remitos.
+
+CREATE TABLE IF NOT EXISTS clientes (
+  id BIGSERIAL PRIMARY KEY,
+  numero_cliente TEXT NOT NULL UNIQUE,
+  nombre TEXT NOT NULL,
+  razon_social TEXT,
+  cuit TEXT,
+  condicion_iva TEXT,
+  telefono TEXT,
+  direccion TEXT,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Por si la tabla ya existía de una corrida anterior del esquema.
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS razon_social TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cuit TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS condicion_iva TEXT;
+
+-- Cabecera de una tropa/romaneo (Nro. Tropa, DTe, fecha de faena, etc.).
+CREATE TABLE IF NOT EXISTS lotes_ingreso (
+  id BIGSERIAL PRIMARY KEY,
+  numero_tropa TEXT NOT NULL,
+  dte TEXT,
+  fecha_faena DATE,
+  establecimiento TEXT,
+  kilos_vivos_total NUMERIC,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Una res entera, identificada por el código de su caravana/etiqueta ya impresa.
+CREATE TABLE IF NOT EXISTS reses (
+  id BIGSERIAL PRIMARY KEY,
+  lote_id BIGINT NOT NULL REFERENCES lotes_ingreso(id),
+  codigo_caravana TEXT NOT NULL UNIQUE,
+  gar TEXT NOT NULL,
+  clasificacion TEXT,
+  tipificacion TEXT,
+  kilos_ingreso NUMERIC NOT NULL,
+  kilos_disponibles NUMERIC NOT NULL,
+  estado TEXT NOT NULL DEFAULT 'en_stock',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ventas (
+  id BIGSERIAL PRIMARY KEY,
+  numero_remito BIGSERIAL NOT NULL,
+  cliente_id BIGINT NOT NULL REFERENCES clientes(id),
+  fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
+  total_importe NUMERIC NOT NULL DEFAULT 0,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS venta_items (
+  id BIGSERIAL PRIMARY KEY,
+  venta_id BIGINT NOT NULL REFERENCES ventas(id) ON DELETE CASCADE,
+  res_id BIGINT NOT NULL REFERENCES reses(id),
+  descripcion TEXT NOT NULL,
+  kilos NUMERIC NOT NULL,
+  precio_kg NUMERIC NOT NULL,
+  importe NUMERIC NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS pagos (
+  id BIGSERIAL PRIMARY KEY,
+  cliente_id BIGINT NOT NULL REFERENCES clientes(id),
+  venta_id BIGINT REFERENCES ventas(id),
+  monto NUMERIC NOT NULL,
+  metodo TEXT,
+  fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reses_estado ON reses (estado);
+CREATE INDEX IF NOT EXISTS idx_venta_items_venta ON venta_items (venta_id);
+CREATE INDEX IF NOT EXISTS idx_venta_items_res ON venta_items (res_id);
+CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas (cliente_id);
+CREATE INDEX IF NOT EXISTS idx_pagos_cliente ON pagos (cliente_id);

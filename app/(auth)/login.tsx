@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -41,7 +41,11 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={[styles.center, Platform.OS !== 'web' ? { paddingTop: insets.top + 8 } : null]}
       >
-        <Text style={styles.marca}>DON RAMÓN</Text>
+        <Image
+          source={require('@/assets/images/logo-don-ramon.jpg')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
         <Text style={styles.titulo}>Control de Stock</Text>
         <View style={[styles.card, Platform.OS === 'web' ? styles.cardWeb : undefined]}>
           <TextInput
@@ -72,11 +76,11 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.rojoOscuro },
-  gradientTop: { ...StyleSheet.absoluteFillObject, backgroundColor: COLORS.rojoPrincipal, opacity: 0.9 },
+  container: { flex: 1, backgroundColor: COLORS.negroProfundo },
+  gradientTop: { ...StyleSheet.absoluteFillObject, backgroundColor: COLORS.dorado, opacity: 0.05 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  marca: { color: COLORS.acentoDorado, fontFamily: 'Poppins_800ExtraBold', fontSize: 28, letterSpacing: 2 },
-  titulo: { color: '#fff', fontFamily: 'Poppins_600SemiBold', fontSize: 16, marginTop: 6, marginBottom: 26 },
+  logo: { width: 150, height: 150, borderRadius: 16, marginBottom: 4 },
+  titulo: { color: COLORS.doradoClaro, fontFamily: 'Poppins_600SemiBold', fontSize: 16, marginTop: 6, marginBottom: 26 },
   card: { width: '100%', backgroundColor: COLORS.crema, borderRadius: 24, padding: 16 },
   cardWeb: { maxWidth: 420 },
   input: {
@@ -92,5 +96,5 @@ const styles = StyleSheet.create({
     color: COLORS.grisTexto,
   },
   inputSpacing: { marginBottom: 12 },
-  footer: { color: COLORS.rojoClaro, fontFamily: 'Poppins_400Regular', marginTop: 18 },
+  footer: { color: COLORS.doradoClaro, fontFamily: 'Poppins_400Regular', marginTop: 18 },
 });

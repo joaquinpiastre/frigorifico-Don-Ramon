@@ -6,6 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/images/logo-don-ramon.jpg",
     "ios": {
       "supportsTablet": true
     },
@@ -18,14 +19,18 @@
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
-      "package": "com.donramon.stock"
+      "package": "com.donramon.stock",
+      "adaptiveIcon": {
+        "backgroundColor": "#15120F"
+      }
     },
     "web": {
       "name": "Don Ramón Stock",
       "shortName": "Don Ramón",
       "lang": "es",
-      "themeColor": "#7A1F2B",
-      "backgroundColor": "#7A1F2B",
+      "themeColor": "#15120F",
+      "backgroundColor": "#15120F",
+      "favicon": "./assets/images/logo-don-ramon.jpg",
       "display": "standalone",
       "orientation": "portrait",
       "startUrl": "/"
@@ -33,6 +38,14 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo-don-ramon.jpg",
+          "imageWidth": 220,
+          "backgroundColor": "#15120F"
+        }
+      ],
       [
         "expo-camera",
         {

@@ -1,0 +1,124 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { requireAuth } from '../auth.js';
+import { pool } from '../db/client.js';
+
+export const clientesRouter = Router();
+
+const CONDICIONES_IVA = ['responsable_inscripto', 'monotributo', 'exento', 'consumidor_final'] as const;
+
+const clienteSchema = z.object({
+  numeroCliente: z.string().min(1),
+  nombre: z.string().min(1),
+  razonSocial: z.string().optional(),
+  cuit: z.string().optional(),
+  condicionIva: z.enum(CONDICIONES_IVA).optional(),
+  telefono: z.string().optional(),
+  direccion: z.string().optional(),
+});
+
+// GET /admin/clientes — listado con saldo calculado (ventas - pagos)
+clientesRouter.get('/admin/clientes', requireAuth, async (_req, res) => {
+  const { rows } = await pool.query(
+    `select c.id, c.numero_cliente as "numeroCliente", c.nombre, c.razon_social as "razonSocial",
+            c.cuit, c.condicion_iva as "condicionIva", c.telefono, c.direccion, c.activo,
+            coalesce(v.total, 0) - coalesce(p.total, 0) as saldo
+     from clientes c
+     left join (select cliente_id, sum(total_importe) as total from ventas group by cliente_id) v
+       on v.cliente_id = c.id
+     left join (select cliente_id, sum(monto) as total from pagos group by cliente_id) p
+       on p.cliente_id = c.id
+     order by c.nombre`
+  );
+  res.json({ clientes: rows });
+});
+
+// POST /admin/clientes — alta de cliente
+clientesRouter.post('/admin/clientes', requireAuth, async (req, res) => {
+  const parsed = clienteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
+    return;
+  }
+  const { numeroCliente, nombre, razonSocial, cuit, condicionIva, telefono, direccion } = parsed.data;
+
+  const existente = await pool.query('select id from clientes where numero_cliente = $1', [numeroCliente]);
+  if (existente.rows.length > 0) {
+    res.status(409).json({ error: 'Ya existe un cliente con ese número.' });
+    return;
+  }
+
+  const { rows } = await pool.query(
+    `insert into clientes (numero_cliente, nombre, razon_social, cuit, condicion_iva, telefono, direccion)
+     values ($1, $2, $3, $4, $5, $6, $7)
+     returning id, numero_cliente as "numeroCliente", nombre, razon_social as "razonSocial",
+               cuit, condicion_iva as "condicionIva", telefono, direccion, activo`,
+    [numeroCliente, nombre, razonSocial ?? null, cuit ?? null, condicionIva ?? null, telefono ?? null, direccion ?? null]
+  );
+  res.json({ cliente: rows[0] });
+});
+
+// GET /admin/clientes/:id — detalle con historial de compras y pagos
+clientesRouter.get('/admin/clientes/:id', requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: 'Id inválido.' });
+    return;
+  }
+
+  const clienteResult = await pool.query(
+    `select id, numero_cliente as "numeroCliente", nombre, razon_social as "razonSocial",
+            cuit, condicion_iva as "condicionIva", telefono, direccion, activo
+     from clientes where id = $1`,
+    [id]
+  );
+  if (clienteResult.rows.length === 0) {
+    res.status(404).json({ error: 'Cliente no encontrado.' });
+    return;
+  }
+
+  const ventas = await pool.query(
+    `select id, numero_remito as "numeroRemito", fecha, total_importe as "totalImporte"
+     from ventas where cliente_id = $1 order by fecha desc`,
+    [id]
+  );
+  const pagos = await pool.query(
+    `select id, venta_id as "ventaId", monto, metodo, fecha
+     from pagos where cliente_id = $1 order by fecha desc`,
+    [id]
+  );
+
+  const totalVentas = ventas.rows.reduce((acc, v) => acc + Number(v.totalImporte), 0);
+  const totalPagos = pagos.rows.reduce((acc, p) => acc + Number(p.monto), 0);
+
+  res.json({
+    cliente: clienteResult.rows[0],
+    ventas: ventas.rows,
+    pagos: pagos.rows,
+    saldo: totalVentas - totalPagos,
+  });
+});
+
+const pagoSchema = z.object({
+  clienteId: z.number().int(),
+  ventaId: z.number().int().optional(),
+  monto: z.number().positive(),
+  metodo: z.string().optional(),
+});
+
+// POST /admin/pagos — registra un pago de un cliente (cuenta corriente)
+clientesRouter.post('/admin/pagos', requireAuth, async (req, res) => {
+  const parsed = pagoSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
+    return;
+  }
+  const { clienteId, ventaId, monto, metodo } = parsed.data;
+  const { rows } = await pool.query(
+    `insert into pagos (cliente_id, venta_id, monto, metodo)
+     values ($1, $2, $3, $4)
+     returning id, cliente_id as "clienteId", venta_id as "ventaId", monto, metodo, fecha`,
+    [clienteId, ventaId ?? null, monto, metodo ?? null]
+  );
+  res.json({ pago: rows[0] });
+});

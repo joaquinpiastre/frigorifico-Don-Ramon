@@ -6,3 +6,114 @@ export interface Usuario {
   rol: RolUsuario;
   activo: boolean;
 }
+
+export interface LoteIngreso {
+  id: number;
+  numeroTropa: string;
+  dte: string | null;
+  fechaFaena: string | null;
+  establecimiento: string | null;
+  kilosVivosTotal: number | null;
+}
+
+export type EstadoRes = 'en_stock' | 'agotada';
+
+export interface Res {
+  id: number;
+  loteId: number;
+  codigoCaravana: string;
+  gar: string;
+  clasificacion: string | null;
+  tipificacion: string | null;
+  kilosIngreso: number;
+  kilosDisponibles: number;
+  estado: EstadoRes;
+}
+
+export type CondicionIva = 'responsable_inscripto' | 'monotributo' | 'exento' | 'consumidor_final';
+
+export const CONDICION_IVA_LABEL: Record<CondicionIva, string> = {
+  responsable_inscripto: 'Responsable Inscripto',
+  monotributo: 'Monotributo',
+  exento: 'Exento',
+  consumidor_final: 'Consumidor Final',
+};
+
+export interface Cliente {
+  id: number;
+  numeroCliente: string;
+  nombre: string;
+  razonSocial: string | null;
+  cuit: string | null;
+  condicionIva: CondicionIva | null;
+  telefono: string | null;
+  direccion: string | null;
+  activo: boolean;
+  saldo?: number;
+}
+
+export interface VentaResumen {
+  id: number;
+  numeroRemito: number;
+  fecha: string;
+  totalImporte: number;
+}
+
+export interface Pago {
+  id: number;
+  ventaId: number | null;
+  monto: number;
+  metodo: string | null;
+  fecha: string;
+}
+
+export interface VentaItemDetalle {
+  id: number;
+  descripcion: string;
+  kilos: number;
+  precioKg: number;
+  importe: number;
+  codigoCaravana: string;
+  gar: string;
+}
+
+export interface VentaDetalle {
+  id: number;
+  numeroRemito: number;
+  fecha: string;
+  totalImporte: number;
+  clienteId: number;
+  clienteNumero: string;
+  clienteNombre: string;
+  clienteTelefono: string | null;
+  clienteDireccion: string | null;
+}
+
+export interface UsuarioAdmin {
+  id: string;
+  nombre: string;
+  rol: RolUsuario;
+  activo: boolean;
+}
+
+export interface Deudor {
+  id: number;
+  nombre: string;
+  saldo: number;
+}
+
+export interface ActividadItem {
+  tipo: 'venta' | 'pago';
+  clienteNombre: string;
+  monto: number;
+  fecha: string;
+}
+
+export interface Estadisticas {
+  ventasHoy: { cantidad: number; total: number };
+  ventasMes: { cantidad: number; total: number };
+  stock: { reses: number; kilos: number };
+  porCobrar: { total: number; clientes: number };
+  topDeudores: Deudor[];
+  actividadReciente: ActividadItem[];
+}

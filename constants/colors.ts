@@ -1,11 +1,11 @@
-// Paleta Don Ramón — rojo profundo (carne/marca) + crema cálido + grafito.
+// Paleta Don Ramón — negro y dorado, fiel al logo del frigorífico.
 export const COLORS = {
-  rojoPrincipal: '#A52439',
-  rojoOscuro: '#7A1F2B',
-  rojoClaro: '#E8B4BC',
+  negro: '#15120F',
+  negroProfundo: '#0B0A08',
+  dorado: '#C9A24B',
+  doradoClaro: '#E3C77D',
+  doradoOscuro: '#8C6D2F',
   crema: '#FBF6F0',
-  acentoDorado: '#C9A24B',
-  acentoAzul: '#2E6F8E',
   grisTexto: '#2A2421',
   grisSecundario: '#8A7E78',
   grisClaro: '#F1ECE7',

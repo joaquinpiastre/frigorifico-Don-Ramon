@@ -27,3 +27,12 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     res.status(401).json({ error: 'Token inválido.' });
   }
 }
+
+export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
+  const user = (req as Request & { user?: AuthClaims }).user;
+  if (user?.rol !== 'admin') {
+    res.status(403).json({ error: 'Acción reservada para administradores.' });
+    return;
+  }
+  next();
+}
