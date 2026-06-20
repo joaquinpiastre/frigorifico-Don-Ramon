@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
@@ -66,10 +66,10 @@ export default function AdminHome() {
             <View style={styles.card}>
               <Text style={styles.seccion}>Top deudores</Text>
               {stats.topDeudores.map((d) => (
-                <View key={d.id} style={styles.fila} onTouchEnd={() => router.push(`/(admin)/clientes/${d.id}`)}>
+                <Pressable key={d.id} style={styles.fila} onPress={() => router.push(`/(admin)/clientes/${d.id}`)}>
                   <Text style={styles.filaTexto}>{d.nombre}</Text>
                   <Text style={styles.filaImporte}>${d.saldo.toFixed(2)}</Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           ) : null}

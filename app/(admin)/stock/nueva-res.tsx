@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -90,15 +90,15 @@ export default function NuevaRes() {
         <>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             {lotes.map((lote) => (
-              <View
+              <Pressable
                 key={lote.id}
                 style={[styles.chip, loteId === lote.id && styles.chipActivo]}
-                onTouchEnd={() => setLoteId(lote.id)}
+                onPress={() => setLoteId(lote.id)}
               >
                 <Text style={[styles.chipTexto, loteId === lote.id && styles.chipTextoActivo]}>
                   Tropa {lote.numeroTropa}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
           <Button label="NUEVA TROPA" variant="secondary" onPress={() => setCreandoLote(true)} />

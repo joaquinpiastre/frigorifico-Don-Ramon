@@ -1,5 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '@/constants/colors';
 
@@ -12,6 +14,7 @@ interface Props {
 
 export function Screen({ title, subtitle, scrollable, children }: Props) {
   const insets = useSafeAreaInsets();
+  const puedeVolver = router.canGoBack();
   const Container = scrollable ? ScrollView : View;
   const containerProps = scrollable
     ? { contentContainerStyle: [styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 24 }] }
@@ -20,6 +23,11 @@ export function Screen({ title, subtitle, scrollable, children }: Props) {
   return (
     <View style={styles.root}>
       <View style={[styles.header, { paddingTop: Platform.OS === 'web' ? 24 : insets.top + 12 }]}>
+        {puedeVolver ? (
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+            <Ionicons name="arrow-back" size={22} color={COLORS.dorado} />
+          </Pressable>
+        ) : null}
         <View style={styles.badge}>
           <Image
             source={require('@/assets/images/logo-don-ramon.jpg')}
@@ -47,6 +55,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  backBtn: { padding: 2 },
   badge: {
     width: 44,
     height: 44,

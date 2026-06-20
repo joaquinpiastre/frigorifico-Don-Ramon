@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -91,11 +91,11 @@ export default function UsuariosIndex() {
           <Text style={styles.label}>Rol</Text>
           <View style={styles.fila}>
             {ROLES.map((r) => (
-              <View key={r} style={[styles.chip, rol === r && styles.chipActivo]} onTouchEnd={() => setRol(r)}>
+              <Pressable key={r} style={[styles.chip, rol === r && styles.chipActivo]} onPress={() => setRol(r)}>
                 <Text style={[styles.chipTexto, rol === r && styles.chipTextoActivo]}>
                   {r === 'admin' ? 'Admin' : 'Operador'}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
           <Button label="GUARDAR USUARIO" loading={guardando} onPress={() => void guardarUsuario()} />
@@ -110,15 +110,15 @@ export default function UsuariosIndex() {
           <Text style={styles.label}>Rol</Text>
           <View style={styles.fila}>
             {ROLES.map((r) => (
-              <View
+              <Pressable
                 key={r}
                 style={[styles.chip, u.rol === r && styles.chipActivo]}
-                onTouchEnd={() => void cambiarRol(u, r)}
+                onPress={() => void cambiarRol(u, r)}
               >
                 <Text style={[styles.chipTexto, u.rol === r && styles.chipTextoActivo]}>
                   {r === 'admin' ? 'Admin' : 'Operador'}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
           <Button

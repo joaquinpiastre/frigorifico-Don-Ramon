@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -125,15 +125,15 @@ export default function ClienteDetalle() {
         <Text style={styles.vacio}>Todavía no tiene compras registradas.</Text>
       ) : (
         ventas.map((v) => (
-          <View
+          <Pressable
             key={v.id}
             style={styles.card}
-            onTouchEnd={() => router.push(`/(admin)/ventas/${v.id}/remito`)}
+            onPress={() => router.push(`/(admin)/ventas/${v.id}/remito`)}
           >
             <Text style={styles.nombre}>Remito N° {v.numeroRemito}</Text>
             <Text style={styles.label}>{new Date(v.fecha).toLocaleDateString('es-AR')}</Text>
             <Text style={styles.importe}>${v.totalImporte.toFixed(2)}</Text>
-          </View>
+          </Pressable>
         ))
       )}
 

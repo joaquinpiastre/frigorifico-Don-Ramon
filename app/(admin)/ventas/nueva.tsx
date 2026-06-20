@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -155,14 +155,14 @@ export default function NuevaVenta() {
         </View>
       ) : (
         clientesFiltrados.map((c) => (
-          <View key={c.id} style={styles.cardCliente} onTouchEnd={() => setClienteSeleccionado(c)}>
+          <Pressable key={c.id} style={styles.cardCliente} onPress={() => setClienteSeleccionado(c)}>
             <Text style={styles.clienteNombre}>
               #{c.numeroCliente} · {c.nombre}
             </Text>
             {typeof c.saldo === 'number' ? (
               <Text style={styles.clienteSaldo}>Saldo: ${c.saldo.toFixed(2)}</Text>
             ) : null}
-          </View>
+          </Pressable>
         ))
       )}
 
@@ -189,9 +189,9 @@ export default function NuevaVenta() {
             <Input label="Descripción (ej. cuarto trasero)" value={descripcion} onChangeText={setDescripcion} />
             <View style={styles.fraccionesRow}>
               {FRACCIONES.map((f) => (
-                <View key={f.label} style={styles.chip} onTouchEnd={() => aplicarFraccion(f.factor)}>
+                <Pressable key={f.label} style={styles.chip} onPress={() => aplicarFraccion(f.factor)}>
                   <Text style={styles.chipTexto}>{f.label}</Text>
-                </View>
+                </Pressable>
               ))}
             </View>
             <Input label="Kilos" value={kilos} onChangeText={setKilos} keyboardType="decimal-pad" />

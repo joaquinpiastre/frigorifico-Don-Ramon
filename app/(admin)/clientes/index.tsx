@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -74,15 +74,15 @@ export default function ClientesIndex() {
           <Text style={styles.label}>Condición frente al IVA</Text>
           <View style={styles.fila}>
             {CONDICIONES.map((c) => (
-              <View
+              <Pressable
                 key={c}
                 style={[styles.chip, condicionIva === c && styles.chipActivo]}
-                onTouchEnd={() => setCondicionIva(c)}
+                onPress={() => setCondicionIva(c)}
               >
                 <Text style={[styles.chipTexto, condicionIva === c && styles.chipTextoActivo]}>
                   {CONDICION_IVA_LABEL[c]}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </View>
           <Input label="Teléfono" value={telefono} onChangeText={setTelefono} />
@@ -93,10 +93,10 @@ export default function ClientesIndex() {
 
       <ScrollView style={{ marginTop: 12 }}>
         {clientes.map((c) => (
-          <View
+          <Pressable
             key={c.id}
             style={styles.card}
-            onTouchEnd={() => router.push(`/(admin)/clientes/${c.id}`)}
+            onPress={() => router.push(`/(admin)/clientes/${c.id}`)}
           >
             <Text style={styles.nombre}>
               #{c.numeroCliente} · {c.nombre}
@@ -105,7 +105,7 @@ export default function ClientesIndex() {
             <Text style={[styles.saldo, (c.saldo ?? 0) > 0 && styles.saldoDeudor]}>
               Saldo: ${(c.saldo ?? 0).toFixed(2)}
             </Text>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
     </Screen>
