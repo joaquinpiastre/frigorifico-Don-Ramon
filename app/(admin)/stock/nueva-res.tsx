@@ -20,10 +20,9 @@ export default function NuevaRes() {
   const [fechaFaena, setFechaFaena] = useState('');
   const [establecimiento, setEstablecimiento] = useState('');
 
-  const [codigoCaravana, setCodigoCaravana] = useState(params.codigo ?? '');
-  const [gar, setGar] = useState('');
+  const [cor, setCor] = useState(params.codigo ?? '');
+  const [garron, setGarron] = useState('');
   const [clasificacion, setClasificacion] = useState('');
-  const [tipificacion, setTipificacion] = useState('');
   const [kilos, setKilos] = useState('');
   const [guardando, setGuardando] = useState(false);
 
@@ -62,21 +61,20 @@ export default function NuevaRes() {
       Alert.alert('Res', 'Seleccioná o creá una tropa primero.');
       return;
     }
-    if (!codigoCaravana.trim() || !gar.trim() || !kilosNum || kilosNum <= 0) {
-      Alert.alert('Res', 'Completá código de caravana, GAR y kilos válidos.');
+    if (!cor.trim() || !kilosNum || kilosNum <= 0) {
+      Alert.alert('Res', 'Completá el código (Cor) de la etiqueta y los kilos.');
       return;
     }
     setGuardando(true);
     try {
       await crearResApi({
         loteId,
-        codigoCaravana: codigoCaravana.trim(),
-        gar: gar.trim(),
+        cor: cor.trim(),
+        garron: garron.trim() || undefined,
         clasificacion: clasificacion.trim() || undefined,
-        tipificacion: tipificacion.trim() || undefined,
         kilos: kilosNum,
       });
-      Alert.alert('Res registrada', `${gar.trim()} se agregó al stock.`);
+      Alert.alert('Res registrada', `Cor ${cor.trim()} se agregó al stock.`);
       router.replace('/(admin)/stock');
     } catch (e) {
       Alert.alert('Res', e instanceof Error ? e.message : 'No se pudo registrar la res.');
@@ -86,7 +84,7 @@ export default function NuevaRes() {
   };
 
   return (
-    <Screen title="Alta de res" subtitle="Datos del romaneo" scrollable>
+    <Screen title="Alta de res" subtitle="Datos de la etiqueta" scrollable>
       <Text style={styles.seccion}>Tropa</Text>
       {!creandoLote ? (
         <>
@@ -117,10 +115,14 @@ export default function NuevaRes() {
 
       <Text style={styles.seccion}>Res</Text>
       <View style={styles.card}>
-        <Input label="Código de caravana" value={codigoCaravana} onChangeText={setCodigoCaravana} />
-        <Input label="GAR (ej. 36VQ)" value={gar} onChangeText={setGar} autoCapitalize="characters" />
-        <Input label="Clasificación (A/B/C)" value={clasificacion} onChangeText={setClasificacion} autoCapitalize="characters" />
-        <Input label="Tipificación (ej. B2)" value={tipificacion} onChangeText={setTipificacion} autoCapitalize="characters" />
+        <Input label="Cor (código de barras de la etiqueta)" value={cor} onChangeText={setCor} />
+        <Input label="Garrón (ej. 030)" value={garron} onChangeText={setGarron} />
+        <Input
+          label="Clasificación (ej. Novillito B 1 2D 000 ZZ)"
+          value={clasificacion}
+          onChangeText={setClasificacion}
+          autoCapitalize="characters"
+        />
         <Input label="Kilos" value={kilos} onChangeText={setKilos} keyboardType="decimal-pad" />
         <Button label="GUARDAR RES" loading={guardando} onPress={() => void guardarRes()} />
       </View>

@@ -21,10 +21,9 @@ export type EstadoRes = 'en_stock' | 'agotada';
 export interface Res {
   id: number;
   loteId: number;
-  codigoCaravana: string;
-  gar: string;
+  cor: string;
+  garron: string | null;
   clasificacion: string | null;
-  tipificacion: string | null;
   kilosIngreso: number;
   kilosDisponibles: number;
   estado: EstadoRes;
@@ -73,8 +72,8 @@ export interface VentaItemDetalle {
   kilos: number;
   precioKg: number;
   importe: number;
-  codigoCaravana: string;
-  gar: string;
+  cor: string;
+  garron: string | null;
 }
 
 export interface VentaDetalle {
@@ -116,4 +115,21 @@ export interface Estadisticas {
   porCobrar: { total: number; clientes: number };
   topDeudores: Deudor[];
   actividadReciente: ActividadItem[];
+}
+
+export interface CargaReparto {
+  id: number;
+  repartidor: string;
+  fecha: string;
+  cerrada: boolean;
+}
+
+export interface CargaItem {
+  id: number;
+  escaneadoEn: string;
+  resId: number;
+  cor: string;
+  garron: string | null;
+  clasificacion: string | null;
+  kilosDisponibles: number;
 }

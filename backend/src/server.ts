@@ -4,6 +4,7 @@ import express from 'express';
 import { config } from './config.js';
 import { pool } from './db/client.js';
 import { authRouter } from './routes/auth.js';
+import { cargasRouter } from './routes/cargas.js';
 import { clientesRouter } from './routes/clientes.js';
 import { estadisticasRouter } from './routes/estadisticas.js';
 import { gpsRouter } from './routes/gps.js';
@@ -33,6 +34,7 @@ app.use(clientesRouter);
 app.use(ventasRouter);
 app.use(usuariosRouter);
 app.use(estadisticasRouter);
+app.use(cargasRouter);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = err instanceof Error ? err.message : String(err);

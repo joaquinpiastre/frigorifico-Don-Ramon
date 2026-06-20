@@ -70,19 +70,48 @@ CREATE TABLE IF NOT EXISTS lotes_ingreso (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Una res entera, identificada por el código de su caravana/etiqueta ya impresa.
+-- Una res entera, identificada por el código de barras ("Cor") de su etiqueta ya impresa.
 CREATE TABLE IF NOT EXISTS reses (
   id BIGSERIAL PRIMARY KEY,
   lote_id BIGINT NOT NULL REFERENCES lotes_ingreso(id),
-  codigo_caravana TEXT NOT NULL UNIQUE,
-  gar TEXT NOT NULL,
+  cor TEXT NOT NULL UNIQUE,
+  garron TEXT,
   clasificacion TEXT,
-  tipificacion TEXT,
   kilos_ingreso NUMERIC NOT NULL,
   kilos_disponibles NUMERIC NOT NULL,
   estado TEXT NOT NULL DEFAULT 'en_stock',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Por si la tabla ya existía con los nombres de campo anteriores.
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reses' AND column_name = 'codigo_caravana') THEN
+    ALTER TABLE reses RENAME COLUMN codigo_caravana TO cor;
+  END IF;
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'reses' AND column_name = 'gar') THEN
+    ALTER TABLE reses RENAME COLUMN gar TO garron;
+  END IF;
+END $$;
+ALTER TABLE reses DROP COLUMN IF EXISTS tipificacion;
+ALTER TABLE reses ALTER COLUMN garron DROP NOT NULL;
+
+-- Manifiesto de carga: lo que el repartidor escanea al subir reses a la camioneta.
+CREATE TABLE IF NOT EXISTS cargas_reparto (
+  id BIGSERIAL PRIMARY KEY,
+  repartidor TEXT NOT NULL,
+  fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
+  cerrada BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS carga_items (
+  id BIGSERIAL PRIMARY KEY,
+  carga_id BIGINT NOT NULL REFERENCES cargas_reparto(id) ON DELETE CASCADE,
+  res_id BIGINT NOT NULL REFERENCES reses(id),
+  escaneado_en TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_carga_items_carga ON carga_items (carga_id);
 
 CREATE TABLE IF NOT EXISTS ventas (
   id BIGSERIAL PRIMARY KEY,

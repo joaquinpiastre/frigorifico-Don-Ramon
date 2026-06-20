@@ -22,10 +22,9 @@ export async function listarLotesApi(): Promise<LoteIngreso[]> {
 
 export async function crearResApi(input: {
   loteId: number;
-  codigoCaravana: string;
-  gar: string;
+  cor: string;
+  garron?: string;
   clasificacion?: string;
-  tipificacion?: string;
   kilos: number;
 }): Promise<Res> {
   const data = await apiRequest<{ res: Res }>('/admin/reses', {

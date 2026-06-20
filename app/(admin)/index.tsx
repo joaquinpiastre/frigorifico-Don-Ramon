@@ -109,6 +109,12 @@ export default function AdminHome() {
         iconLeft={<Ionicons name="people-outline" size={18} color={COLORS.negro} />}
         onPress={() => router.push('/(admin)/clientes')}
       />
+      <Button
+        label="CARGA DE REPARTO"
+        variant="secondary"
+        iconLeft={<Ionicons name="car-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(admin)/reparto/nueva')}
+      />
       {esAdmin ? (
         <Button
           label="USUARIOS"

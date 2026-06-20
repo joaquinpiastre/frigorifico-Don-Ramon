@@ -14,7 +14,7 @@ function construirHtml(venta: VentaDetalle, items: VentaItemDetalle[], saldoClie
     .map(
       (i) => `
         <tr>
-          <td>${i.gar} (${i.codigoCaravana})</td>
+          <td>Garrón ${i.garron ?? '–'} (${i.cor})</td>
           <td>${i.descripcion}</td>
           <td>${i.kilos} kg</td>
           <td>$${i.precioKg.toFixed(2)}</td>
@@ -125,7 +125,7 @@ export default function Remito() {
         {items.map((i) => (
           <View key={i.id} style={styles.item}>
             <Text style={styles.valor}>
-              {i.gar} · {i.descripcion}
+              Garrón {i.garron ?? '–'} · {i.descripcion}
             </Text>
             <Text style={styles.label}>
               {i.kilos} kg × ${i.precioKg.toFixed(2)} = ${i.importe.toFixed(2)}

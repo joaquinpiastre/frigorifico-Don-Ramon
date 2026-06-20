@@ -28,7 +28,7 @@ export default function StockIndex() {
 
   return (
     <Screen title="Stock de reses" subtitle="Reses en stock" scrollable>
-      <Button label="ESCANEAR CARAVANA" onPress={() => router.push('/(admin)/stock/escanear')} />
+      <Button label="ESCANEAR ETIQUETA" onPress={() => router.push('/(admin)/stock/escanear')} />
       <Button
         label="ALTA MANUAL DE RES"
         variant="secondary"
@@ -42,9 +42,9 @@ export default function StockIndex() {
       ) : (
         reses.map((res) => (
           <View key={res.id} style={styles.card}>
-            <Text style={styles.gar}>{res.gar}</Text>
+            <Text style={styles.gar}>Garrón {res.garron ?? '–'}</Text>
             <Text style={styles.detalle}>
-              Caravana {res.codigoCaravana} · {res.clasificacion ?? '–'} {res.tipificacion ?? ''}
+              Cor {res.cor} · {res.clasificacion ?? '–'}
             </Text>
             <Text style={styles.kilos}>
               {res.kilosDisponibles} kg disponibles de {res.kilosIngreso} kg

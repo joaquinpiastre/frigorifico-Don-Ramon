@@ -18,8 +18,8 @@ const FRACCIONES = [
 ];
 
 interface Linea extends ItemVentaInput {
-  gar: string;
-  codigoCaravana: string;
+  garron: string | null;
+  cor: string;
 }
 
 export default function NuevaVenta() {
@@ -57,7 +57,7 @@ export default function NuevaVenta() {
     try {
       const res = await buscarResPorCodigoApi(codigoBusqueda.trim());
       if (!res) {
-        Alert.alert('Res no encontrada', 'No hay una res en stock con ese código de caravana.');
+        Alert.alert('Res no encontrada', 'No hay una res en stock con ese código.');
         return;
       }
       if (res.kilosDisponibles <= 0) {
@@ -97,8 +97,8 @@ export default function NuevaVenta() {
         descripcion: descripcion.trim(),
         kilos: kilosNum,
         precioKg: precioNum,
-        gar: resEncontrada.gar,
-        codigoCaravana: resEncontrada.codigoCaravana,
+        garron: resEncontrada.garron,
+        cor: resEncontrada.cor,
       },
     ]);
     setResEncontrada(null);
@@ -169,7 +169,7 @@ export default function NuevaVenta() {
       <Text style={styles.seccion}>Agregar res a la venta</Text>
       <View style={styles.card}>
         <Input
-          label="Código de caravana"
+          label="Código (Cor) de la etiqueta"
           value={codigoBusqueda}
           onChangeText={setCodigoBusqueda}
           autoCapitalize="characters"
@@ -179,7 +179,7 @@ export default function NuevaVenta() {
         {resEncontrada ? (
           <View style={styles.resInfo}>
             <Text style={styles.clienteNombre}>
-              {resEncontrada.gar} · {resEncontrada.kilosDisponibles} kg disponibles
+              Garrón {resEncontrada.garron ?? '–'} · {resEncontrada.kilosDisponibles} kg disponibles
             </Text>
             <Input label="Descripción (ej. cuarto trasero)" value={descripcion} onChangeText={setDescripcion} />
             <View style={styles.fraccionesRow}>
@@ -202,7 +202,7 @@ export default function NuevaVenta() {
           {lineas.map((l, i) => (
             <View key={i} style={styles.card}>
               <Text style={styles.clienteNombre}>
-                {l.gar} · {l.descripcion}
+                Garrón {l.garron ?? '–'} · {l.descripcion}
               </Text>
               <Text style={styles.clienteSaldo}>
                 {l.kilos} kg × ${l.precioKg} = ${(l.kilos * l.precioKg).toFixed(2)}

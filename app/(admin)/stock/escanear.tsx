@@ -19,7 +19,7 @@ export default function EscanearCaravana() {
 
     const res = await buscarResPorCodigoApi(codigo);
     if (res) {
-      setMensaje(`${res.gar} · ${res.kilosDisponibles} kg disponibles`);
+      setMensaje(`Garrón ${res.garron ?? '–'} · ${res.kilosDisponibles} kg disponibles`);
     } else {
       setMensaje(`Código ${codigo} no registrado. Abriendo alta de res…`);
       router.push({ pathname: '/(admin)/stock/nueva-res', params: { codigo } });
@@ -28,7 +28,7 @@ export default function EscanearCaravana() {
 
   if (!permiso) {
     return (
-      <Screen title="Escanear caravana" scrollable>
+      <Screen title="Escanear etiqueta" scrollable>
         <Text>Cargando permisos de cámara…</Text>
       </Screen>
     );
@@ -36,15 +36,15 @@ export default function EscanearCaravana() {
 
   if (!permiso.granted) {
     return (
-      <Screen title="Escanear caravana" scrollable>
-        <Text style={styles.aviso}>Necesitamos acceso a la cámara para leer el código de la caravana.</Text>
+      <Screen title="Escanear etiqueta" scrollable>
+        <Text style={styles.aviso}>Necesitamos acceso a la cámara para leer el código de barras de la etiqueta.</Text>
         <Button label="DAR PERMISO" onPress={() => void solicitarPermiso()} />
       </Screen>
     );
   }
 
   return (
-    <Screen title="Escanear caravana" subtitle="Apuntá la cámara al código">
+    <Screen title="Escanear etiqueta" subtitle="Apuntá la cámara al código">
       <View style={styles.cameraWrapper}>
         <CameraView
           style={styles.camera}

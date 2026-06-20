@@ -44,34 +44,33 @@ resesRouter.get('/admin/lotes', requireAuth, async (_req, res) => {
 
 const resSchema = z.object({
   loteId: z.number().int(),
-  codigoCaravana: z.string().min(1),
-  gar: z.string().min(1),
+  cor: z.string().min(1),
+  garron: z.string().optional(),
   clasificacion: z.string().optional(),
-  tipificacion: z.string().optional(),
   kilos: z.number().positive(),
 });
 
-// POST /admin/reses — registra una res entera (alta de stock)
+// POST /admin/reses — registra una res entera (alta de stock) a partir de su etiqueta con código de barras
 resesRouter.post('/admin/reses', requireAuth, async (req, res) => {
   const parsed = resSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
     return;
   }
-  const { loteId, codigoCaravana, gar, clasificacion, tipificacion, kilos } = parsed.data;
+  const { loteId, cor, garron, clasificacion, kilos } = parsed.data;
 
-  const existente = await pool.query('select id from reses where codigo_caravana = $1', [codigoCaravana]);
+  const existente = await pool.query('select id from reses where cor = $1', [cor]);
   if (existente.rows.length > 0) {
-    res.status(409).json({ error: 'Ya existe una res con ese código de caravana.' });
+    res.status(409).json({ error: 'Ya existe una res con ese código (Cor).' });
     return;
   }
 
   const { rows } = await pool.query(
-    `insert into reses (lote_id, codigo_caravana, gar, clasificacion, tipificacion, kilos_ingreso, kilos_disponibles)
-     values ($1, $2, $3, $4, $5, $6, $6)
-     returning id, lote_id as "loteId", codigo_caravana as "codigoCaravana", gar, clasificacion,
-               tipificacion, kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado`,
-    [loteId, codigoCaravana, gar, clasificacion ?? null, tipificacion ?? null, kilos]
+    `insert into reses (lote_id, cor, garron, clasificacion, kilos_ingreso, kilos_disponibles)
+     values ($1, $2, $3, $4, $5, $5)
+     returning id, lote_id as "loteId", cor, garron, clasificacion,
+               kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado`,
+    [loteId, cor, garron ?? null, clasificacion ?? null, kilos]
   );
   res.json({ res: rows[0] });
 });
@@ -80,8 +79,8 @@ resesRouter.post('/admin/reses', requireAuth, async (req, res) => {
 resesRouter.get('/admin/reses', requireAuth, async (req, res) => {
   const estado = typeof req.query.estado === 'string' ? req.query.estado : undefined;
   const { rows } = await pool.query(
-    `select id, lote_id as "loteId", codigo_caravana as "codigoCaravana", gar, clasificacion,
-            tipificacion, kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
+    `select id, lote_id as "loteId", cor, garron, clasificacion,
+            kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
      from reses
      where ($1::text is null or estado = $1)
      order by created_at desc`,
@@ -90,13 +89,13 @@ resesRouter.get('/admin/reses', requireAuth, async (req, res) => {
   res.json({ reses: rows });
 });
 
-// GET /admin/reses/:codigo — busca una res por el código escaneado de la caravana
+// GET /admin/reses/:codigo — busca una res por el código de barras (Cor) escaneado
 resesRouter.get('/admin/reses/:codigo', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    `select id, lote_id as "loteId", codigo_caravana as "codigoCaravana", gar, clasificacion,
-            tipificacion, kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
+    `select id, lote_id as "loteId", cor, garron, clasificacion,
+            kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
      from reses
-     where codigo_caravana = $1`,
+     where cor = $1`,
     [req.params.codigo]
   );
   if (rows.length === 0) {

@@ -110,7 +110,7 @@ ventasRouter.get('/admin/ventas/:id', requireAuth, async (req, res) => {
 
   const items = await pool.query(
     `select vi.id, vi.descripcion, vi.kilos, vi.precio_kg as "precioKg", vi.importe,
-            r.codigo_caravana as "codigoCaravana", r.gar
+            r.cor, r.garron
      from venta_items vi
      join reses r on r.id = vi.res_id
      where vi.venta_id = $1`,
