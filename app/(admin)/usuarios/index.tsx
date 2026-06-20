@@ -69,6 +69,16 @@ export default function UsuariosIndex() {
     }
   };
 
+  const cambiarRol = async (u: UsuarioAdmin, nuevoRol: RolUsuario) => {
+    if (u.rol === nuevoRol) return;
+    try {
+      await actualizarUsuarioApi(u.id, { rol: nuevoRol });
+      listarUsuariosApi().then(setUsuarios).catch(() => undefined);
+    } catch (e) {
+      Alert.alert('Usuario', e instanceof Error ? e.message : 'No se pudo cambiar el rol.');
+    }
+  };
+
   return (
     <Screen title="Usuarios" subtitle="Acceso al sistema" scrollable>
       {!creando ? (
@@ -95,10 +105,22 @@ export default function UsuariosIndex() {
       <Text style={styles.seccion}>Usuarios del sistema</Text>
       {usuarios.map((u) => (
         <View key={u.id} style={styles.card}>
-          <Text style={styles.nombre}>
-            {u.nombre} <Text style={styles.rolTexto}>· {u.rol === 'admin' ? 'Admin' : 'Operador'}</Text>
-          </Text>
+          <Text style={styles.nombre}>{u.nombre}</Text>
           <Text style={styles.idTexto}>usuario: {u.id}</Text>
+          <Text style={styles.label}>Rol</Text>
+          <View style={styles.fila}>
+            {ROLES.map((r) => (
+              <View
+                key={r}
+                style={[styles.chip, u.rol === r && styles.chipActivo]}
+                onTouchEnd={() => void cambiarRol(u, r)}
+              >
+                <Text style={[styles.chipTexto, u.rol === r && styles.chipTextoActivo]}>
+                  {r === 'admin' ? 'Admin' : 'Operador'}
+                </Text>
+              </View>
+            ))}
+          </View>
           <Button
             label={u.activo ? 'DESACTIVAR' : 'ACTIVAR'}
             variant={u.activo ? 'danger' : 'secondary'}
@@ -127,6 +149,5 @@ const styles = StyleSheet.create({
   chipTextoActivo: { color: '#fff' },
   seccion: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: COLORS.grisTexto, marginTop: 8 },
   nombre: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: COLORS.grisTexto },
-  rolTexto: { fontFamily: 'Poppins_400Regular', fontSize: 13, color: COLORS.grisSecundario },
   idTexto: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },
 });
