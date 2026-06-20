@@ -14,8 +14,6 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
-        "CAMERA",
-        "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
       ],
@@ -44,12 +42,6 @@
           "image": "./assets/images/logo-don-ramon.jpg",
           "imageWidth": 220,
           "backgroundColor": "#15120F"
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "La app necesita acceso a la cámara para escanear productos."
         }
       ],
       [

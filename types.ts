@@ -133,3 +133,19 @@ export interface CargaItem {
   clasificacion: string | null;
   kilosDisponibles: number;
 }
+
+export interface UnidadLive {
+  id: string;
+  nombre: string;
+  posicion: { lat: number; lng: number };
+  actualizadoEn: number;
+}
+
+export interface DispositivoGps {
+  imei: string;
+  unidadId: string;
+  unidadNombre: string;
+  nombre: string;
+  activo: boolean;
+  ultimoContactoMs: number | null;
+}

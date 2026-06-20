@@ -172,7 +172,12 @@ export default function NuevaVenta() {
           label="Código (Cor) de la etiqueta"
           value={codigoBusqueda}
           onChangeText={setCodigoBusqueda}
+          onSubmitEditing={() => void buscarRes()}
           autoCapitalize="characters"
+          autoFocus
+          blurOnSubmit={false}
+          returnKeyType="done"
+          placeholder="Esperando lectura…"
         />
         <Button label="BUSCAR RES" variant="secondary" loading={buscandoRes} onPress={() => void buscarRes()} />
 

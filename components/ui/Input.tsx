@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { COLORS } from '@/constants/colors';
 
@@ -5,14 +6,15 @@ interface Props extends TextInputProps {
   label?: string;
 }
 
-export function Input({ label, style, ...rest }: Props) {
+export const Input = forwardRef<TextInput, Props>(({ label, style, ...rest }, ref) => {
   return (
     <View style={styles.wrapper}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <TextInput placeholderTextColor={COLORS.grisSecundario} style={[styles.input, style]} {...rest} />
+      <TextInput ref={ref} placeholderTextColor={COLORS.grisSecundario} style={[styles.input, style]} {...rest} />
     </View>
   );
-}
+});
+Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
   wrapper: { marginBottom: 12 },

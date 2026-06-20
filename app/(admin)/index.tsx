@@ -115,13 +115,27 @@ export default function AdminHome() {
         iconLeft={<Ionicons name="car-outline" size={18} color={COLORS.negro} />}
         onPress={() => router.push('/(admin)/reparto/nueva')}
       />
+      <Button
+        label="MAPA EN VIVO"
+        variant="secondary"
+        iconLeft={<Ionicons name="map-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(admin)/mapa')}
+      />
       {esAdmin ? (
-        <Button
-          label="USUARIOS"
-          variant="secondary"
-          iconLeft={<Ionicons name="key-outline" size={18} color={COLORS.negro} />}
-          onPress={() => router.push('/(admin)/usuarios')}
-        />
+        <>
+          <Button
+            label="USUARIOS"
+            variant="secondary"
+            iconLeft={<Ionicons name="key-outline" size={18} color={COLORS.negro} />}
+            onPress={() => router.push('/(admin)/usuarios')}
+          />
+          <Button
+            label="RASTREADORES"
+            variant="secondary"
+            iconLeft={<Ionicons name="navigate-outline" size={18} color={COLORS.negro} />}
+            onPress={() => router.push('/(admin)/rastreadores')}
+          />
+        </>
       ) : null}
       <Button
         label="CERRAR SESIÓN"

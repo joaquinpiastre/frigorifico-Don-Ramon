@@ -1,23 +1,21 @@
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { cerrarCargaApi, crearCargaApi, escanearItemCargaApi } from '@/services/cargasApi';
 import type { CargaItem } from '@/types';
 
-const COOLDOWN_MS = 2500;
-
 export default function NuevaCargaReparto() {
-  const [permiso, solicitarPermiso] = useCameraPermissions();
   const [cargaId, setCargaId] = useState<number | null>(null);
   const [items, setItems] = useState<CargaItem[]>([]);
+  const [codigo, setCodigo] = useState('');
   const [procesando, setProcesando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
-  const ultimoEscaneo = useRef<{ cor: string; en: number } | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     crearCargaApi()
@@ -25,12 +23,9 @@ export default function NuevaCargaReparto() {
       .catch(() => Alert.alert('Carga', 'No se pudo abrir la carga de reparto.'));
   }, []);
 
-  const onCodigoLeido = async (cor: string) => {
-    if (!cargaId || procesando) return;
-    const ahora = Date.now();
-    if (ultimoEscaneo.current?.cor === cor && ahora - ultimoEscaneo.current.en < COOLDOWN_MS) return;
-    ultimoEscaneo.current = { cor, en: ahora };
-
+  const procesarCodigo = async () => {
+    const cor = codigo.trim();
+    if (!cor || !cargaId || procesando) return;
     setProcesando(true);
     try {
       const item = await escanearItemCargaApi(cargaId, cor);
@@ -39,7 +34,9 @@ export default function NuevaCargaReparto() {
     } catch (e) {
       setMensaje(e instanceof Error ? e.message : 'No se pudo agregar esa res.');
     } finally {
+      setCodigo('');
       setProcesando(false);
+      inputRef.current?.focus();
     }
   };
 
@@ -58,33 +55,19 @@ export default function NuevaCargaReparto() {
     }
   };
 
-  if (!permiso) {
-    return (
-      <Screen title="Carga de reparto" scrollable>
-        <Text>Cargando permisos de cámara…</Text>
-      </Screen>
-    );
-  }
-
-  if (!permiso.granted) {
-    return (
-      <Screen title="Carga de reparto" scrollable>
-        <Text style={styles.aviso}>Necesitamos acceso a la cámara para leer las etiquetas.</Text>
-        <Button label="DAR PERMISO" onPress={() => void solicitarPermiso()} />
-      </Screen>
-    );
-  }
-
   return (
-    <Screen title="Carga de reparto" subtitle="Escaneá cada res que sube a la camioneta">
-      <View style={styles.cameraWrapper}>
-        <CameraView
-          style={styles.camera}
-          facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ['code128', 'code39', 'ean13', 'qr', 'datamatrix'] }}
-          onBarcodeScanned={(result) => void onCodigoLeido(result.data)}
-        />
-      </View>
+    <Screen title="Carga de reparto" subtitle="Apuntá la pistola y disparale a cada etiqueta" scrollable>
+      <Input
+        ref={inputRef}
+        label="Código (Cor)"
+        value={codigo}
+        onChangeText={setCodigo}
+        onSubmitEditing={() => void procesarCodigo()}
+        autoFocus
+        blurOnSubmit={false}
+        returnKeyType="done"
+        placeholder="Esperando lectura…"
+      />
       {mensaje ? <Text style={styles.mensaje}>{mensaje}</Text> : null}
 
       <Text style={styles.contador}>{items.length} piezas cargadas</Text>
@@ -103,16 +86,12 @@ export default function NuevaCargaReparto() {
 }
 
 const styles = StyleSheet.create({
-  aviso: { fontFamily: 'Poppins_400Regular', color: COLORS.grisTexto, marginBottom: 12 },
-  cameraWrapper: { borderRadius: 16, overflow: 'hidden', height: 300 },
-  camera: { flex: 1 },
   mensaje: {
     fontFamily: 'Poppins_600SemiBold',
     color: COLORS.grisTexto,
     backgroundColor: '#fff',
     padding: 14,
     borderRadius: 14,
-    marginTop: 12,
     textAlign: 'center',
   },
   contador: {

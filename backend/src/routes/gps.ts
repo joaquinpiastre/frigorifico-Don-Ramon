@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../auth.js';
+import { requireAdmin, requireAuth } from '../auth.js';
 import { pool } from '../db/client.js';
 
 export const gpsRouter = Router();
@@ -45,7 +45,7 @@ gpsRouter.get('/gps/live', requireAuth, async (_req, res) => {
 });
 
 // GET /admin/dispositivos-gps — lista de trackers registrados
-gpsRouter.get('/admin/dispositivos-gps', requireAuth, async (_req, res) => {
+gpsRouter.get('/admin/dispositivos-gps', requireAuth, requireAdmin, async (_req, res) => {
   const { rows } = await pool.query(
     `select d.imei, d.unidad_id as "unidadId", u.nombre as "unidadNombre", d.nombre,
             d.activo, d.ultimo_contacto_ms as "ultimoContactoMs"
@@ -57,7 +57,7 @@ gpsRouter.get('/admin/dispositivos-gps', requireAuth, async (_req, res) => {
 });
 
 // POST /admin/dispositivos-gps — registra/actualiza un tracker y su unidad
-gpsRouter.post('/admin/dispositivos-gps', requireAuth, async (req, res) => {
+gpsRouter.post('/admin/dispositivos-gps', requireAuth, requireAdmin, async (req, res) => {
   const parsed = dispositivoSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
@@ -81,7 +81,7 @@ gpsRouter.post('/admin/dispositivos-gps', requireAuth, async (req, res) => {
 });
 
 // DELETE /admin/dispositivos-gps/:imei — desactiva un tracker
-gpsRouter.delete('/admin/dispositivos-gps/:imei', requireAuth, async (req, res) => {
+gpsRouter.delete('/admin/dispositivos-gps/:imei', requireAuth, requireAdmin, async (req, res) => {
   await pool.query(`update dispositivos_gps set activo = false where imei = $1`, [req.params.imei]);
   res.json({ ok: true });
 });
