@@ -2,7 +2,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
@@ -90,10 +91,10 @@ export default function Remito() {
       if (disponible) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: `Remito ${venta.numeroRemito}` });
       } else {
-        Alert.alert('Remito generado', `PDF guardado en: ${uri}`);
+        showAlert('Remito generado', `PDF guardado en: ${uri}`);
       }
     } catch (e) {
-      Alert.alert('Remito', e instanceof Error ? e.message : 'No se pudo generar el remito.');
+      showAlert('Remito', e instanceof Error ? e.message : 'No se pudo generar el remito.');
     } finally {
       setGenerando(false);
     }

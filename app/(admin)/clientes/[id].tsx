@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -44,7 +45,7 @@ export default function ClienteDetalle() {
   const registrarPago = async () => {
     const montoNum = Number(monto.replace(',', '.'));
     if (!montoNum || montoNum <= 0) {
-      Alert.alert('Pago', 'Ingresá un monto válido.');
+      showAlert('Pago', 'Ingresá un monto válido.');
       return;
     }
     setRegistrandoPago(true);
@@ -53,7 +54,7 @@ export default function ClienteDetalle() {
       setMonto('');
       cargar();
     } catch (e) {
-      Alert.alert('Pago', e instanceof Error ? e.message : 'No se pudo registrar el pago.');
+      showAlert('Pago', e instanceof Error ? e.message : 'No se pudo registrar el pago.');
     } finally {
       setRegistrandoPago(false);
     }

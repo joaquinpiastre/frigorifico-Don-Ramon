@@ -115,14 +115,14 @@ export default function AdminHome() {
         iconLeft={<Ionicons name="car-outline" size={18} color={COLORS.negro} />}
         onPress={() => router.push('/(admin)/reparto/nueva')}
       />
-      <Button
-        label="MAPA EN VIVO"
-        variant="secondary"
-        iconLeft={<Ionicons name="map-outline" size={18} color={COLORS.negro} />}
-        onPress={() => router.push('/(admin)/mapa')}
-      />
       {esAdmin ? (
         <>
+          <Button
+            label="MAPA EN VIVO"
+            variant="secondary"
+            iconLeft={<Ionicons name="map-outline" size={18} color={COLORS.negro} />}
+            onPress={() => router.push('/(admin)/mapa')}
+          />
           <Button
             label="USUARIOS"
             variant="secondary"

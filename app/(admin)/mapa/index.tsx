@@ -1,10 +1,12 @@
-import { useCallback, useState } from 'react';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { LiveMap } from '@/components/map/LiveMap';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { obtenerPosicionesLiveApi } from '@/services/gpsApi';
+import { useAppStore } from '@/store/useAppStore';
 import type { UnidadLive } from '@/types';
 
 const INTERVALO_MS = 10_000;
@@ -19,8 +21,15 @@ function haceCuanto(timestampMs: number): string {
 }
 
 export default function MapaEnVivo() {
+  const usuarioActual = useAppStore((s) => s.usuario);
   const [unidades, setUnidades] = useState<UnidadLive[]>([]);
   const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    if (usuarioActual && usuarioActual.rol !== 'admin') {
+      router.replace('/(admin)');
+    }
+  }, [usuarioActual]);
 
   useFocusEffect(
     useCallback(() => {
@@ -39,6 +48,10 @@ export default function MapaEnVivo() {
       };
     }, [])
   );
+
+  if (usuarioActual && usuarioActual.rol !== 'admin') {
+    return null;
+  }
 
   return (
     <Screen title="Mapa en vivo" subtitle="Posición de los camiones de reparto" scrollable>

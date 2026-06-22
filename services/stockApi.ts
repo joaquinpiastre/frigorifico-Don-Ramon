@@ -34,8 +34,29 @@ export async function crearResApi(input: {
   return data.res;
 }
 
-export async function listarResesApi(estado?: 'en_stock' | 'agotada'): Promise<Res[]> {
-  const query = estado ? `?estado=${estado}` : '';
+export async function actualizarResApi(
+  id: number,
+  input: { garron?: string; clasificacion?: string; kilosDisponibles?: number; estado?: 'en_stock' | 'agotada' }
+): Promise<Res> {
+  const data = await apiRequest<{ res: Res }>(`/admin/reses/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+  return data.res;
+}
+
+export async function listarResesApi(filtros?: {
+  estado?: 'en_stock' | 'agotada';
+  q?: string;
+  loteId?: number;
+  limit?: number;
+}): Promise<Res[]> {
+  const params = new URLSearchParams();
+  if (filtros?.estado) params.set('estado', filtros.estado);
+  if (filtros?.q) params.set('q', filtros.q);
+  if (filtros?.loteId) params.set('loteId', String(filtros.loteId));
+  if (filtros?.limit) params.set('limit', String(filtros.limit));
+  const query = params.toString() ? `?${params.toString()}` : '';
   const data = await apiRequest<{ reses: Res[] }>(`/admin/reses${query}`);
   return data.reses;
 }

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -20,7 +21,7 @@ export default function NuevaCargaReparto() {
   useEffect(() => {
     crearCargaApi()
       .then((carga) => setCargaId(carga.id))
-      .catch(() => Alert.alert('Carga', 'No se pudo abrir la carga de reparto.'));
+      .catch(() => showAlert('Carga', 'No se pudo abrir la carga de reparto.'));
   }, []);
 
   const procesarCodigo = async () => {
@@ -46,10 +47,10 @@ export default function NuevaCargaReparto() {
     try {
       await cerrarCargaApi(cargaId);
       const totalKilos = items.reduce((acc, i) => acc + i.kilosDisponibles, 0);
-      Alert.alert('Carga finalizada', `${items.length} piezas · ${totalKilos.toFixed(0)} kg en total.`);
+      showAlert('Carga finalizada', `${items.length} piezas · ${totalKilos.toFixed(0)} kg en total.`);
       router.replace('/(admin)');
     } catch (e) {
-      Alert.alert('Carga', e instanceof Error ? e.message : 'No se pudo finalizar la carga.');
+      showAlert('Carga', e instanceof Error ? e.message : 'No se pudo finalizar la carga.');
     } finally {
       setFinalizando(false);
     }

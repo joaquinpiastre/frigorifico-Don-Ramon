@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -48,11 +49,11 @@ export default function RastreadoresIndex() {
 
   const guardarDispositivo = async () => {
     if (!/^\d{15}$/.test(imei.trim())) {
-      Alert.alert('Rastreador', 'El IMEI debe tener 15 dígitos.');
+      showAlert('Rastreador', 'El IMEI debe tener 15 dígitos.');
       return;
     }
     if (!unidadId.trim() || !unidadNombre.trim() || !nombreTracker.trim()) {
-      Alert.alert('Rastreador', 'Completá el ID, el nombre del camión y el nombre del tracker.');
+      showAlert('Rastreador', 'Completá el ID, el nombre del camión y el nombre del tracker.');
       return;
     }
     setGuardando(true);
@@ -70,7 +71,7 @@ export default function RastreadoresIndex() {
       setCreando(false);
       listarDispositivosGpsApi().then(setDispositivos).catch(() => undefined);
     } catch (e) {
-      Alert.alert('Rastreador', e instanceof Error ? e.message : 'No se pudo guardar el rastreador.');
+      showAlert('Rastreador', e instanceof Error ? e.message : 'No se pudo guardar el rastreador.');
     } finally {
       setGuardando(false);
     }
@@ -81,7 +82,7 @@ export default function RastreadoresIndex() {
       await eliminarDispositivoGpsApi(d.imei);
       listarDispositivosGpsApi().then(setDispositivos).catch(() => undefined);
     } catch (e) {
-      Alert.alert('Rastreador', e instanceof Error ? e.message : 'No se pudo desactivar el rastreador.');
+      showAlert('Rastreador', e instanceof Error ? e.message : 'No se pudo desactivar el rastreador.');
     }
   };
 

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -18,19 +19,19 @@ export default function LoginScreen() {
     const u = usuario.trim().toLowerCase();
     const p = pin.trim();
     if (!u || p.length !== 4) {
-      Alert.alert('Datos incompletos', 'Ingresá usuario y PIN de 4 dígitos.');
+      showAlert('Datos incompletos', 'Ingresá usuario y PIN de 4 dígitos.');
       return;
     }
     try {
       const remoto = await loginApi(u, p);
       if (!remoto) {
-        Alert.alert('Login', 'No se pudo autenticar contra el backend. Verificá la API.');
+        showAlert('Login', 'No se pudo autenticar contra el backend. Verificá la API.');
         return;
       }
       setUsuarioGlobal(remoto);
       router.replace('/(admin)');
     } catch (e) {
-      Alert.alert('Login', e instanceof Error ? e.message : 'No se pudo iniciar sesión.');
+      showAlert('Login', e instanceof Error ? e.message : 'No se pudo iniciar sesión.');
     }
   };
 

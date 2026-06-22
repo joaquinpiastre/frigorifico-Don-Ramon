@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -23,6 +24,11 @@ export default function UsuariosIndex() {
   const [rol, setRol] = useState<RolUsuario>('operador');
   const [guardando, setGuardando] = useState(false);
 
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editPin, setEditPin] = useState('');
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+
   useEffect(() => {
     if (usuarioActual && usuarioActual.rol !== 'admin') {
       router.replace('/(admin)');
@@ -41,7 +47,7 @@ export default function UsuariosIndex() {
 
   const guardarUsuario = async () => {
     if (!id.trim() || !nombre.trim() || pin.trim().length !== 4) {
-      Alert.alert('Usuario', 'Completá usuario, nombre y un PIN de 4 dígitos.');
+      showAlert('Usuario', 'Completá usuario, nombre y un PIN de 4 dígitos.');
       return;
     }
     setGuardando(true);
@@ -54,7 +60,7 @@ export default function UsuariosIndex() {
       setCreando(false);
       listarUsuariosApi().then(setUsuarios).catch(() => undefined);
     } catch (e) {
-      Alert.alert('Usuario', e instanceof Error ? e.message : 'No se pudo crear el usuario.');
+      showAlert('Usuario', e instanceof Error ? e.message : 'No se pudo crear el usuario.');
     } finally {
       setGuardando(false);
     }
@@ -65,7 +71,7 @@ export default function UsuariosIndex() {
       await actualizarUsuarioApi(u.id, { activo: !u.activo });
       listarUsuariosApi().then(setUsuarios).catch(() => undefined);
     } catch (e) {
-      Alert.alert('Usuario', e instanceof Error ? e.message : 'No se pudo actualizar el usuario.');
+      showAlert('Usuario', e instanceof Error ? e.message : 'No se pudo actualizar el usuario.');
     }
   };
 
@@ -75,7 +81,37 @@ export default function UsuariosIndex() {
       await actualizarUsuarioApi(u.id, { rol: nuevoRol });
       listarUsuariosApi().then(setUsuarios).catch(() => undefined);
     } catch (e) {
-      Alert.alert('Usuario', e instanceof Error ? e.message : 'No se pudo cambiar el rol.');
+      showAlert('Usuario', e instanceof Error ? e.message : 'No se pudo cambiar el rol.');
+    }
+  };
+
+  const empezarEdicion = (u: UsuarioAdmin) => {
+    setEditandoId(u.id);
+    setEditNombre(u.nombre);
+    setEditPin('');
+  };
+
+  const guardarEdicion = async (u: UsuarioAdmin) => {
+    if (!editNombre.trim()) {
+      showAlert('Usuario', 'El nombre no puede quedar vacío.');
+      return;
+    }
+    if (editPin && editPin.length !== 4) {
+      showAlert('Usuario', 'El PIN debe tener 4 dígitos, o dejalo vacío para no cambiarlo.');
+      return;
+    }
+    setGuardandoEdicion(true);
+    try {
+      await actualizarUsuarioApi(u.id, {
+        nombre: editNombre.trim(),
+        pin: editPin ? editPin : undefined,
+      });
+      setEditandoId(null);
+      listarUsuariosApi().then(setUsuarios).catch(() => undefined);
+    } catch (e) {
+      showAlert('Usuario', e instanceof Error ? e.message : 'No se pudo actualizar el usuario.');
+    } finally {
+      setGuardandoEdicion(false);
     }
   };
 
@@ -103,31 +139,49 @@ export default function UsuariosIndex() {
       )}
 
       <Text style={styles.seccion}>Usuarios del sistema</Text>
-      {usuarios.map((u) => (
-        <View key={u.id} style={styles.card}>
-          <Text style={styles.nombre}>{u.nombre}</Text>
-          <Text style={styles.idTexto}>usuario: {u.id}</Text>
-          <Text style={styles.label}>Rol</Text>
-          <View style={styles.fila}>
-            {ROLES.map((r) => (
-              <Pressable
-                key={r}
-                style={[styles.chip, u.rol === r && styles.chipActivo]}
-                onPress={() => void cambiarRol(u, r)}
-              >
-                <Text style={[styles.chipTexto, u.rol === r && styles.chipTextoActivo]}>
-                  {r === 'admin' ? 'Admin' : 'Operador'}
-                </Text>
-              </Pressable>
-            ))}
+      {usuarios.map((u) =>
+        editandoId === u.id ? (
+          <View key={u.id} style={styles.card}>
+            <Input label="Nombre" value={editNombre} onChangeText={setEditNombre} />
+            <Input
+              label="Nuevo PIN (4 dígitos, opcional)"
+              value={editPin}
+              onChangeText={setEditPin}
+              keyboardType="number-pad"
+              maxLength={4}
+              secureTextEntry
+              placeholder="Dejar vacío para no cambiarlo"
+            />
+            <Button label="GUARDAR CAMBIOS" loading={guardandoEdicion} onPress={() => void guardarEdicion(u)} />
+            <Button label="CANCELAR" variant="secondary" onPress={() => setEditandoId(null)} />
           </View>
-          <Button
-            label={u.activo ? 'DESACTIVAR' : 'ACTIVAR'}
-            variant={u.activo ? 'danger' : 'secondary'}
-            onPress={() => void toggleActivo(u)}
-          />
-        </View>
-      ))}
+        ) : (
+          <View key={u.id} style={styles.card}>
+            <Text style={styles.nombre}>{u.nombre}</Text>
+            <Text style={styles.idTexto}>usuario: {u.id}</Text>
+            <Text style={styles.label}>Rol</Text>
+            <View style={styles.fila}>
+              {ROLES.map((r) => (
+                <Pressable
+                  key={r}
+                  style={[styles.chip, u.rol === r && styles.chipActivo]}
+                  onPress={() => void cambiarRol(u, r)}
+                >
+                  <Text style={[styles.chipTexto, u.rol === r && styles.chipTextoActivo]}>
+                    {r === 'admin' ? 'Admin' : 'Operador'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Button label="EDITAR PERFIL" variant="secondary" onPress={() => empezarEdicion(u)} />
+            <Button
+              label={u.activo ? 'DESACTIVAR' : 'ACTIVAR'}
+              variant={u.activo ? 'danger' : 'secondary'}
+              onPress={() => void toggleActivo(u)}
+            />
+          </View>
+        )
+      )}
     </Screen>
   );
 }

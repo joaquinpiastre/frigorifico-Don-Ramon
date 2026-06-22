@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -57,11 +58,11 @@ export default function NuevaVenta() {
     try {
       const res = await buscarResPorCodigoApi(codigoBusqueda.trim());
       if (!res) {
-        Alert.alert('Res no encontrada', 'No hay una res en stock con ese código.');
+        showAlert('Res no encontrada', 'No hay una res en stock con ese código.');
         return;
       }
       if (res.kilosDisponibles <= 0) {
-        Alert.alert('Sin stock', 'Esa res ya no tiene kilos disponibles.');
+        showAlert('Sin stock', 'Esa res ya no tiene kilos disponibles.');
         return;
       }
       setResEncontrada(res);
@@ -79,15 +80,15 @@ export default function NuevaVenta() {
     const kilosNum = Number(kilos.replace(',', '.'));
     const precioNum = Number(precioKg.replace(',', '.'));
     if (!resEncontrada) {
-      Alert.alert('Venta', 'Buscá primero la res a vender.');
+      showAlert('Venta', 'Buscá primero la res a vender.');
       return;
     }
     if (!descripcion.trim() || !kilosNum || kilosNum <= 0 || !precioNum || precioNum <= 0) {
-      Alert.alert('Venta', 'Completá descripción, kilos y precio por kilo.');
+      showAlert('Venta', 'Completá descripción, kilos y precio por kilo.');
       return;
     }
     if (kilosNum > resEncontrada.kilosDisponibles) {
-      Alert.alert('Venta', `Esa res solo tiene ${resEncontrada.kilosDisponibles} kg disponibles.`);
+      showAlert('Venta', `Esa res solo tiene ${resEncontrada.kilosDisponibles} kg disponibles.`);
       return;
     }
     setLineas((prev) => [
@@ -112,11 +113,11 @@ export default function NuevaVenta() {
 
   const confirmarVenta = async () => {
     if (!clienteSeleccionado) {
-      Alert.alert('Venta', 'Seleccioná un cliente.');
+      showAlert('Venta', 'Seleccioná un cliente.');
       return;
     }
     if (lineas.length === 0) {
-      Alert.alert('Venta', 'Agregá al menos una línea de venta.');
+      showAlert('Venta', 'Agregá al menos una línea de venta.');
       return;
     }
     setGuardando(true);
@@ -132,7 +133,7 @@ export default function NuevaVenta() {
       });
       router.replace(`/(admin)/ventas/${venta.id}/remito`);
     } catch (e) {
-      Alert.alert('Venta', e instanceof Error ? e.message : 'No se pudo registrar la venta.');
+      showAlert('Venta', e instanceof Error ? e.message : 'No se pudo registrar la venta.');
     } finally {
       setGuardando(false);
     }

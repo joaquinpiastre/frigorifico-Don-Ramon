@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
@@ -37,7 +38,7 @@ export default function NuevaRes() {
 
   const guardarTropaYContinuar = async () => {
     if (!numeroTropa.trim()) {
-      Alert.alert('Tropa', 'Ingresá el número de tropa.');
+      showAlert('Tropa', 'Ingresá el número de tropa.');
       return;
     }
     try {
@@ -51,18 +52,18 @@ export default function NuevaRes() {
       setLoteId(lote.id);
       setCreandoLote(false);
     } catch (e) {
-      Alert.alert('Tropa', e instanceof Error ? e.message : 'No se pudo crear la tropa.');
+      showAlert('Tropa', e instanceof Error ? e.message : 'No se pudo crear la tropa.');
     }
   };
 
   const guardarRes = async () => {
     const kilosNum = Number(kilos.replace(',', '.'));
     if (!loteId) {
-      Alert.alert('Res', 'Seleccioná o creá una tropa primero.');
+      showAlert('Res', 'Seleccioná o creá una tropa primero.');
       return;
     }
     if (!cor.trim() || !kilosNum || kilosNum <= 0) {
-      Alert.alert('Res', 'Completá el código (Cor) de la etiqueta y los kilos.');
+      showAlert('Res', 'Completá el código (Cor) de la etiqueta y los kilos.');
       return;
     }
     setGuardando(true);
@@ -74,10 +75,10 @@ export default function NuevaRes() {
         clasificacion: clasificacion.trim() || undefined,
         kilos: kilosNum,
       });
-      Alert.alert('Res registrada', `Cor ${cor.trim()} se agregó al stock.`);
+      showAlert('Res registrada', `Cor ${cor.trim()} se agregó al stock.`);
       router.replace('/(admin)/stock');
     } catch (e) {
-      Alert.alert('Res', e instanceof Error ? e.message : 'No se pudo registrar la res.');
+      showAlert('Res', e instanceof Error ? e.message : 'No se pudo registrar la res.');
     } finally {
       setGuardando(false);
     }

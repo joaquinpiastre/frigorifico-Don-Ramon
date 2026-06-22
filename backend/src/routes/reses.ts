@@ -75,18 +75,60 @@ resesRouter.post('/admin/reses', requireAuth, async (req, res) => {
   res.json({ res: rows[0] });
 });
 
-// GET /admin/reses?estado=en_stock — listado de reses, filtrable por estado
+// GET /admin/reses?estado=en_stock&q=texto&loteId=1 — listado de reses, filtrable y paginado para soportar grandes volúmenes
 resesRouter.get('/admin/reses', requireAuth, async (req, res) => {
   const estado = typeof req.query.estado === 'string' ? req.query.estado : undefined;
+  const q = typeof req.query.q === 'string' && req.query.q.trim() ? `%${req.query.q.trim()}%` : undefined;
+  const loteId = typeof req.query.loteId === 'string' ? Number(req.query.loteId) : undefined;
+  const limite = Math.min(Number(req.query.limit) || 100, 500);
+
   const { rows } = await pool.query(
     `select id, lote_id as "loteId", cor, garron, clasificacion,
             kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
      from reses
      where ($1::text is null or estado = $1)
-     order by created_at desc`,
-    [estado ?? null]
+       and ($2::text is null or cor ilike $2 or garron ilike $2 or clasificacion ilike $2)
+       and ($3::int is null or lote_id = $3)
+     order by created_at desc
+     limit $4`,
+    [estado ?? null, q ?? null, loteId ?? null, limite]
   );
   res.json({ reses: rows });
+});
+
+const actualizarResSchema = z.object({
+  garron: z.string().trim().optional(),
+  clasificacion: z.string().trim().optional(),
+  kilosDisponibles: z.number().nonnegative().optional(),
+  estado: z.enum(['en_stock', 'agotada']).optional(),
+});
+
+// PATCH /admin/reses/:id — corrige garrón, clasificación, kilos disponibles o estado de una res ya cargada
+resesRouter.patch('/admin/reses/:id', requireAuth, async (req, res) => {
+  const parsed = actualizarResSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
+    return;
+  }
+  const { garron, clasificacion, kilosDisponibles, estado } = parsed.data;
+  const id = Number(req.params.id);
+
+  const { rows } = await pool.query(
+    `update reses set
+       garron = coalesce($2, garron),
+       clasificacion = coalesce($3, clasificacion),
+       kilos_disponibles = coalesce($4, kilos_disponibles),
+       estado = coalesce($5, estado)
+     where id = $1
+     returning id, lote_id as "loteId", cor, garron, clasificacion,
+               kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado`,
+    [id, garron ?? null, clasificacion ?? null, kilosDisponibles ?? null, estado ?? null]
+  );
+  if (rows.length === 0) {
+    res.status(404).json({ error: 'No existe una res con ese id.' });
+    return;
+  }
+  res.json({ res: rows[0] });
 });
 
 // GET /admin/reses/:codigo — busca una res por el código de barras (Cor) escaneado
