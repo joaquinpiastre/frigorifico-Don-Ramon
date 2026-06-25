@@ -99,6 +99,45 @@ clientesRouter.get('/admin/clientes/:id', requireAuth, async (req, res) => {
   });
 });
 
+const actualizarClienteSchema = z.object({
+  nombre: z.string().trim().min(1).optional(),
+  razonSocial: z.string().trim().optional(),
+  cuit: z.string().trim().optional(),
+  condicionIva: z.enum(CONDICIONES_IVA).optional(),
+  telefono: z.string().trim().optional(),
+  direccion: z.string().trim().optional(),
+});
+
+// PATCH /admin/clientes/:id — edita datos de contacto del cliente (lo usa también el repartidor)
+clientesRouter.patch('/admin/clientes/:id', requireAuth, async (req, res) => {
+  const parsed = actualizarClienteSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
+    return;
+  }
+  const { nombre, razonSocial, cuit, condicionIva, telefono, direccion } = parsed.data;
+  const id = Number(req.params.id);
+
+  const { rows } = await pool.query(
+    `update clientes set
+       nombre = coalesce($2, nombre),
+       razon_social = coalesce($3, razon_social),
+       cuit = coalesce($4, cuit),
+       condicion_iva = coalesce($5, condicion_iva),
+       telefono = coalesce($6, telefono),
+       direccion = coalesce($7, direccion)
+     where id = $1
+     returning id, numero_cliente as "numeroCliente", nombre, razon_social as "razonSocial",
+               cuit, condicion_iva as "condicionIva", telefono, direccion, activo`,
+    [id, nombre ?? null, razonSocial ?? null, cuit ?? null, condicionIva ?? null, telefono ?? null, direccion ?? null]
+  );
+  if (rows.length === 0) {
+    res.status(404).json({ error: 'Cliente no encontrado.' });
+    return;
+  }
+  res.json({ cliente: rows[0] });
+});
+
 const pagoSchema = z.object({
   clienteId: z.number().int(),
   ventaId: z.number().int().optional(),

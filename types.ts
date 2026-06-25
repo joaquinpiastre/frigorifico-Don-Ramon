@@ -1,4 +1,4 @@
-export type RolUsuario = 'admin' | 'operador';
+export type RolUsuario = 'admin' | 'operador' | 'repartidor';
 
 export interface Usuario {
   id: string;
@@ -108,6 +108,19 @@ export interface ActividadItem {
   fecha: string;
 }
 
+export interface EntregaHoyItem {
+  clienteId: number;
+  clienteNombre: string;
+  repartidores: string;
+  piezas: number;
+}
+
+export interface VentaHoyPorClienteItem {
+  clienteId: number;
+  clienteNombre: string;
+  monto: number;
+}
+
 export interface Estadisticas {
   ventasHoy: { cantidad: number; total: number };
   ventasMes: { cantidad: number; total: number };
@@ -115,23 +128,64 @@ export interface Estadisticas {
   porCobrar: { total: number; clientes: number };
   topDeudores: Deudor[];
   actividadReciente: ActividadItem[];
+  entregasHoy: EntregaHoyItem[];
+  ventasHoyPorCliente: VentaHoyPorClienteItem[];
 }
 
-export interface CargaReparto {
+export type CategoriaProducto = 'vacuno' | 'cerdo' | 'toro' | 'embutido' | 'otro';
+export type UnidadProducto = 'kg' | 'unidad';
+
+export interface Producto {
   id: number;
-  repartidor: string;
-  fecha: string;
-  cerrada: boolean;
+  nombre: string;
+  categoria: CategoriaProducto;
+  tieneCodigoBarra: boolean;
+  unidad: UnidadProducto;
+  activo: boolean;
 }
 
-export interface CargaItem {
+export interface ItemStock {
   id: number;
-  escaneadoEn: string;
-  resId: number;
-  cor: string;
+  productoId: number;
+  productoNombre: string;
+  cantidad: number;
+  cantidadDisponible: number;
+}
+
+export type EstadoPedido = 'pendiente' | 'armado' | 'cargado' | 'entregado';
+
+export const ESTADO_PEDIDO_LABEL: Record<EstadoPedido, string> = {
+  pendiente: 'Pendiente de armar',
+  armado: 'Armado',
+  cargado: 'Cargado en camioneta',
+  entregado: 'Entregado',
+};
+
+export interface PedidoItem {
+  id: number;
+  productoId: number;
+  productoNombre: string;
+  resId: number | null;
+  cor: string | null;
+  cantidad: number;
+  precio: number;
   garron: string | null;
-  clasificacion: string | null;
-  kilosDisponibles: number;
+  tropa: string | null;
+  entregado: boolean;
+}
+
+export interface Pedido {
+  id: number;
+  clienteId: number;
+  clienteNombre: string;
+  repartidor: string;
+  repartidorNombre: string | null;
+  estado: EstadoPedido;
+  fecha: string;
+}
+
+export interface PedidoDetalle extends Pedido {
+  items: PedidoItem[];
 }
 
 export interface UnidadLive {

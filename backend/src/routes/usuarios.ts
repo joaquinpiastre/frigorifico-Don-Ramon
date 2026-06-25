@@ -17,7 +17,7 @@ const crearUsuarioSchema = z.object({
   id: z.string().trim().min(2),
   nombre: z.string().trim().min(2),
   pin: z.string().trim().length(4),
-  rol: z.enum(['admin', 'operador']),
+  rol: z.enum(['admin', 'operador', 'repartidor']),
 });
 
 // POST /admin/usuarios — alta de usuario
@@ -48,7 +48,7 @@ usuariosRouter.post('/admin/usuarios', requireAuth, requireAdmin, async (req, re
 const actualizarUsuarioSchema = z.object({
   nombre: z.string().trim().min(2).optional(),
   pin: z.string().trim().length(4).optional(),
-  rol: z.enum(['admin', 'operador']).optional(),
+  rol: z.enum(['admin', 'operador', 'repartidor']).optional(),
   activo: z.boolean().optional(),
 });
 

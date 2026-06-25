@@ -95,7 +95,7 @@ END $$;
 ALTER TABLE reses DROP COLUMN IF EXISTS tipificacion;
 ALTER TABLE reses ALTER COLUMN garron DROP NOT NULL;
 
--- Manifiesto de carga: lo que el repartidor escanea al subir reses a la camioneta.
+-- DEPRECATED: reemplazado por pedidos/pedido_items. No usar en código nuevo.
 CREATE TABLE IF NOT EXISTS cargas_reparto (
   id BIGSERIAL PRIMARY KEY,
   repartidor TEXT NOT NULL,
@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS cargas_reparto (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- DEPRECATED: reemplazado por pedidos/pedido_items. No usar en código nuevo.
 CREATE TABLE IF NOT EXISTS carga_items (
   id BIGSERIAL PRIMARY KEY,
   carga_id BIGINT NOT NULL REFERENCES cargas_reparto(id) ON DELETE CASCADE,
@@ -148,3 +149,69 @@ CREATE INDEX IF NOT EXISTS idx_venta_items_venta ON venta_items (venta_id);
 CREATE INDEX IF NOT EXISTS idx_venta_items_res ON venta_items (res_id);
 CREATE INDEX IF NOT EXISTS idx_ventas_cliente ON ventas (cliente_id);
 CREATE INDEX IF NOT EXISTS idx_pagos_cliente ON pagos (cliente_id);
+
+-- Catálogo de productos. Las reses (vacuno/cerdo, con código de barras "Cor") siguen
+-- modeladas en la tabla reses; el resto de productos (embutidos, chorizos, morcillas,
+-- etc, sin código de barras) usan este catálogo + items_stock.
+CREATE TABLE IF NOT EXISTS productos (
+  id BIGSERIAL PRIMARY KEY,
+  nombre TEXT NOT NULL,
+  categoria TEXT NOT NULL,
+  tiene_codigo_barra BOOLEAN NOT NULL DEFAULT false,
+  unidad TEXT NOT NULL DEFAULT 'kg',
+  activo BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_productos_nombre ON productos (nombre);
+CREATE INDEX IF NOT EXISTS idx_productos_activo ON productos (activo);
+
+-- Ingreso de stock de productos SIN código de barras, registrado por el operador
+-- (buscar producto manual + cantidad + guardar). Para vacuno/cerdo con barcode, el
+-- ingreso sigue siendo una fila en "reses".
+CREATE TABLE IF NOT EXISTS items_stock (
+  id BIGSERIAL PRIMARY KEY,
+  producto_id BIGINT NOT NULL REFERENCES productos(id),
+  cantidad NUMERIC NOT NULL,
+  cantidad_disponible NUMERIC NOT NULL,
+  registrado_por TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_items_stock_producto ON items_stock (producto_id);
+
+-- Cabecera de un pedido armado por el admin para un cliente, asignado a un repartidor.
+CREATE TABLE IF NOT EXISTS pedidos (
+  id BIGSERIAL PRIMARY KEY,
+  cliente_id BIGINT NOT NULL REFERENCES clientes(id),
+  repartidor TEXT NOT NULL REFERENCES usuarios(id),
+  estado TEXT NOT NULL DEFAULT 'pendiente',
+  created_by TEXT,
+  fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
+  armado_en TIMESTAMPTZ,
+  cargado_en TIMESTAMPTZ,
+  entregado_en TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos (estado);
+CREATE INDEX IF NOT EXISTS idx_pedidos_repartidor ON pedidos (repartidor);
+CREATE INDEX IF NOT EXISTS idx_pedidos_cliente ON pedidos (cliente_id);
+
+-- Líneas del pedido: producto + cantidad + precio + trazabilidad (garrón/tropa).
+-- res_id opcional: si se vincula a una res física concreta, se completa; si no, null.
+CREATE TABLE IF NOT EXISTS pedido_items (
+  id BIGSERIAL PRIMARY KEY,
+  pedido_id BIGINT NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  producto_id BIGINT NOT NULL REFERENCES productos(id),
+  res_id BIGINT REFERENCES reses(id),
+  cantidad NUMERIC NOT NULL,
+  precio NUMERIC NOT NULL,
+  garron TEXT,
+  tropa TEXT,
+  entregado BOOLEAN NOT NULL DEFAULT false,
+  entregado_en TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido ON pedido_items (pedido_id);
+CREATE INDEX IF NOT EXISTS idx_pedido_items_producto ON pedido_items (producto_id);

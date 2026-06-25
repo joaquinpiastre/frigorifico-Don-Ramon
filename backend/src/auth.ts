@@ -5,7 +5,7 @@ import { config } from './config.js';
 export interface AuthClaims {
   sub: string;
   nombre: string;
-  rol: 'admin' | 'operador';
+  rol: 'admin' | 'operador' | 'repartidor';
 }
 
 export function signToken(claims: AuthClaims): string {
@@ -35,4 +35,15 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     return;
   }
   next();
+}
+
+export function requireRol(...roles: AuthClaims['rol'][]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const user = (req as Request & { user?: AuthClaims }).user;
+    if (!user || !roles.includes(user.rol)) {
+      res.status(403).json({ error: 'No tenés permiso para esta acción.' });
+      return;
+    }
+    next();
+  };
 }

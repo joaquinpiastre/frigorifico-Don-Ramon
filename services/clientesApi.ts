@@ -22,6 +22,24 @@ export async function crearClienteApi(input: {
   return data.cliente;
 }
 
+export async function actualizarClienteApi(
+  id: number,
+  input: {
+    nombre?: string;
+    razonSocial?: string;
+    cuit?: string;
+    condicionIva?: CondicionIva;
+    telefono?: string;
+    direccion?: string;
+  }
+): Promise<Cliente> {
+  const data = await apiRequest<{ cliente: Cliente }>(`/admin/clientes/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+  return data.cliente;
+}
+
 export async function obtenerClienteApi(
   id: number
 ): Promise<{ cliente: Cliente; ventas: VentaResumen[]; pagos: Pago[]; saldo: number }> {

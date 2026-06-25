@@ -11,7 +11,8 @@ import { actualizarUsuarioApi, crearUsuarioApi, listarUsuariosApi } from '@/serv
 import { useAppStore } from '@/store/useAppStore';
 import type { RolUsuario, UsuarioAdmin } from '@/types';
 
-const ROLES: RolUsuario[] = ['admin', 'operador'];
+const ROLES: RolUsuario[] = ['admin', 'operador', 'repartidor'];
+const ROL_LABEL: Record<RolUsuario, string> = { admin: 'Admin', operador: 'Operador', repartidor: 'Repartidor' };
 
 export default function UsuariosIndex() {
   const usuarioActual = useAppStore((s) => s.usuario);
@@ -129,7 +130,7 @@ export default function UsuariosIndex() {
             {ROLES.map((r) => (
               <Pressable key={r} style={[styles.chip, rol === r && styles.chipActivo]} onPress={() => setRol(r)}>
                 <Text style={[styles.chipTexto, rol === r && styles.chipTextoActivo]}>
-                  {r === 'admin' ? 'Admin' : 'Operador'}
+                  {ROL_LABEL[r]}
                 </Text>
               </Pressable>
             ))}
@@ -168,7 +169,7 @@ export default function UsuariosIndex() {
                   onPress={() => void cambiarRol(u, r)}
                 >
                   <Text style={[styles.chipTexto, u.rol === r && styles.chipTextoActivo]}>
-                    {r === 'admin' ? 'Admin' : 'Operador'}
+                    {ROL_LABEL[r]}
                   </Text>
                 </Pressable>
               ))}

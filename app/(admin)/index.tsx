@@ -88,6 +88,48 @@ export default function AdminHome() {
               ))}
             </View>
           ) : null}
+
+          {esAdmin ? (
+            <View style={styles.card}>
+              <Text style={styles.seccion}>Repartos de hoy</Text>
+              {stats.entregasHoy.length === 0 ? (
+                <Text style={styles.statSub}>Todavía no se entregó mercadería hoy.</Text>
+              ) : (
+                stats.entregasHoy.map((e) => (
+                  <Pressable
+                    key={e.clienteId}
+                    style={styles.fila}
+                    onPress={() => router.push(`/(admin)/clientes/${e.clienteId}`)}
+                  >
+                    <Text style={styles.filaTexto}>
+                      {e.clienteNombre} · {e.repartidores}
+                    </Text>
+                    <Text style={styles.filaImporte}>{e.piezas} piezas</Text>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+
+          {esAdmin ? (
+            <View style={styles.card}>
+              <Text style={styles.seccion}>Quién debe por lo de hoy</Text>
+              {stats.ventasHoyPorCliente.length === 0 ? (
+                <Text style={styles.statSub}>Todavía no se registraron ventas hoy.</Text>
+              ) : (
+                stats.ventasHoyPorCliente.map((v) => (
+                  <Pressable
+                    key={v.clienteId}
+                    style={styles.fila}
+                    onPress={() => router.push(`/(admin)/clientes/${v.clienteId}`)}
+                  >
+                    <Text style={styles.filaTexto}>{v.clienteNombre}</Text>
+                    <Text style={styles.filaImporte}>${v.monto.toFixed(2)}</Text>
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
         </>
       ) : null}
 
@@ -110,13 +152,19 @@ export default function AdminHome() {
         onPress={() => router.push('/(admin)/clientes')}
       />
       <Button
-        label="CARGA DE REPARTO"
+        label="PEDIDOS"
         variant="secondary"
-        iconLeft={<Ionicons name="car-outline" size={18} color={COLORS.negro} />}
-        onPress={() => router.push('/(admin)/reparto/nueva')}
+        iconLeft={<Ionicons name="cart-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(admin)/pedidos')}
       />
       {esAdmin ? (
         <>
+          <Button
+            label="PRODUCTOS"
+            variant="secondary"
+            iconLeft={<Ionicons name="pricetags-outline" size={18} color={COLORS.negro} />}
+            onPress={() => router.push('/(admin)/productos')}
+          />
           <Button
             label="MAPA EN VIVO"
             variant="secondary"

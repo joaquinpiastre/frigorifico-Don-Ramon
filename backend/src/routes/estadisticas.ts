@@ -6,7 +6,7 @@ export const estadisticasRouter = Router();
 
 // GET /admin/estadisticas — resumen del negocio para el panel principal
 estadisticasRouter.get('/admin/estadisticas', requireAuth, async (_req, res) => {
-  const [ventasHoy, ventasMes, stock, saldosPorCliente, actividad] = await Promise.all([
+  const [ventasHoy, ventasMes, stock, saldosPorCliente, actividad, entregasHoy, ventasHoyPorCliente] = await Promise.all([
     pool.query<{ cantidad: string; total: string }>(
       `select count(*) as cantidad, coalesce(sum(total_importe), 0) as total
        from ventas where fecha::date = current_date`
@@ -36,6 +36,25 @@ estadisticasRouter.get('/admin/estadisticas', requireAuth, async (_req, res) => 
        order by fecha desc
        limit 8`
     ),
+    pool.query<{ id: number; nombre: string; repartidores: string; piezas: string }>(
+      `select c.id, c.nombre,
+              string_agg(distinct p.repartidor, ', ') as repartidores,
+              count(pi.id) as piezas
+       from pedidos p
+       join clientes c on c.id = p.cliente_id
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado' and p.entregado_en::date = current_date
+       group by c.id, c.nombre
+       order by piezas desc`
+    ),
+    pool.query<{ id: number; nombre: string; monto: string }>(
+      `select c.id, c.nombre, sum(v.total_importe) as monto
+       from ventas v
+       join clientes c on c.id = v.cliente_id
+       where v.fecha::date = current_date
+       group by c.id, c.nombre
+       order by monto desc`
+    ),
   ]);
 
   const deudores = saldosPorCliente.rows
@@ -56,6 +75,17 @@ estadisticasRouter.get('/admin/estadisticas', requireAuth, async (_req, res) => 
       clienteNombre: r.clienteNombre,
       monto: Number(r.monto),
       fecha: r.fecha,
+    })),
+    entregasHoy: entregasHoy.rows.map((r) => ({
+      clienteId: r.id,
+      clienteNombre: r.nombre,
+      repartidores: r.repartidores,
+      piezas: Number(r.piezas),
+    })),
+    ventasHoyPorCliente: ventasHoyPorCliente.rows.map((r) => ({
+      clienteId: r.id,
+      clienteNombre: r.nombre,
+      monto: Number(r.monto),
     })),
   });
 });

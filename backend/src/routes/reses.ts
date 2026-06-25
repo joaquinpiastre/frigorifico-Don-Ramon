@@ -1,9 +1,21 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth } from '../auth.js';
+import { requireAuth, requireRol } from '../auth.js';
 import { pool } from '../db/client.js';
 
 export const resesRouter = Router();
+
+// Lote por defecto para altas rápidas del operador que no indican una tropa concreta.
+async function obtenerLoteDefaultId(): Promise<number> {
+  const existente = await pool.query(
+    "select id from lotes_ingreso where numero_tropa = 'SIN-TROPA' limit 1"
+  );
+  if (existente.rows.length > 0) return existente.rows[0].id;
+  const creado = await pool.query(
+    "insert into lotes_ingreso (numero_tropa) values ('SIN-TROPA') returning id"
+  );
+  return creado.rows[0].id;
+}
 
 const loteSchema = z.object({
   numeroTropa: z.string().min(1),
@@ -43,7 +55,7 @@ resesRouter.get('/admin/lotes', requireAuth, async (_req, res) => {
 });
 
 const resSchema = z.object({
-  loteId: z.number().int(),
+  loteId: z.number().int().optional(),
   cor: z.string().min(1),
   garron: z.string().optional(),
   clasificacion: z.string().optional(),
@@ -51,7 +63,7 @@ const resSchema = z.object({
 });
 
 // POST /admin/reses — registra una res entera (alta de stock) a partir de su etiqueta con código de barras
-resesRouter.post('/admin/reses', requireAuth, async (req, res) => {
+resesRouter.post('/admin/reses', requireAuth, requireRol('operador', 'admin'), async (req, res) => {
   const parsed = resSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
@@ -65,12 +77,13 @@ resesRouter.post('/admin/reses', requireAuth, async (req, res) => {
     return;
   }
 
+  const loteIdFinal = loteId ?? (await obtenerLoteDefaultId());
   const { rows } = await pool.query(
     `insert into reses (lote_id, cor, garron, clasificacion, kilos_ingreso, kilos_disponibles)
      values ($1, $2, $3, $4, $5, $5)
      returning id, lote_id as "loteId", cor, garron, clasificacion,
                kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado`,
-    [loteId, cor, garron ?? null, clasificacion ?? null, kilos]
+    [loteIdFinal, cor, garron ?? null, clasificacion ?? null, kilos]
   );
   res.json({ res: rows[0] });
 });
@@ -104,7 +117,7 @@ const actualizarResSchema = z.object({
 });
 
 // PATCH /admin/reses/:id — corrige garrón, clasificación, kilos disponibles o estado de una res ya cargada
-resesRouter.patch('/admin/reses/:id', requireAuth, async (req, res) => {
+resesRouter.patch('/admin/reses/:id', requireAuth, requireRol('operador', 'admin'), async (req, res) => {
   const parsed = actualizarResSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
