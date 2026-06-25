@@ -21,7 +21,7 @@ export async function listarLotesApi(): Promise<LoteIngreso[]> {
 }
 
 export async function crearResApi(input: {
-  loteId: number;
+  loteId?: number;
   cor: string;
   garron?: string;
   clasificacion?: string;

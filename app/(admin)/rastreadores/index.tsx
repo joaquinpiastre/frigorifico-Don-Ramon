@@ -31,6 +31,11 @@ export default function RastreadoresIndex() {
   const [nombreTracker, setNombreTracker] = useState('');
   const [guardando, setGuardando] = useState(false);
 
+  const [editandoImei, setEditandoImei] = useState<string | null>(null);
+  const [editUnidadNombre, setEditUnidadNombre] = useState('');
+  const [editNombreTracker, setEditNombreTracker] = useState('');
+  const [guardandoEdicion, setGuardandoEdicion] = useState(false);
+
   useEffect(() => {
     if (usuarioActual && usuarioActual.rol !== 'admin') {
       router.replace('/(admin)');
@@ -77,6 +82,34 @@ export default function RastreadoresIndex() {
     }
   };
 
+  const empezarEdicion = (d: DispositivoGps) => {
+    setEditandoImei(d.imei);
+    setEditUnidadNombre(d.unidadNombre);
+    setEditNombreTracker(d.nombre);
+  };
+
+  const guardarEdicion = async (d: DispositivoGps) => {
+    if (!editUnidadNombre.trim() || !editNombreTracker.trim()) {
+      showAlert('Rastreador', 'Completá el nombre del camión y el nombre del tracker.');
+      return;
+    }
+    setGuardandoEdicion(true);
+    try {
+      await crearDispositivoGpsApi({
+        imei: d.imei,
+        unidadId: d.unidadId,
+        unidadNombre: editUnidadNombre.trim(),
+        nombreTracker: editNombreTracker.trim(),
+      });
+      setEditandoImei(null);
+      listarDispositivosGpsApi().then(setDispositivos).catch(() => undefined);
+    } catch (e) {
+      showAlert('Rastreador', e instanceof Error ? e.message : 'No se pudo actualizar el rastreador.');
+    } finally {
+      setGuardandoEdicion(false);
+    }
+  };
+
   const desactivar = async (d: DispositivoGps) => {
     try {
       await eliminarDispositivoGpsApi(d.imei);
@@ -104,16 +137,27 @@ export default function RastreadoresIndex() {
       {dispositivos.length === 0 ? (
         <Text style={styles.vacio}>Todavía no hay rastreadores registrados.</Text>
       ) : (
-        dispositivos.map((d) => (
-          <View key={d.imei} style={styles.card}>
-            <Text style={styles.nombre}>{d.unidadNombre}</Text>
-            <Text style={styles.detalle}>
-              {d.nombre} · IMEI {d.imei}
-            </Text>
-            <Text style={styles.detalle}>{haceCuanto(d.ultimoContactoMs)}</Text>
-            {d.activo ? <Button label="DESACTIVAR" variant="danger" onPress={() => void desactivar(d)} /> : null}
-          </View>
-        ))
+        dispositivos.map((d) =>
+          editandoImei === d.imei ? (
+            <View key={d.imei} style={styles.card}>
+              <Text style={styles.detalle}>IMEI {d.imei} (no se puede cambiar)</Text>
+              <Input label="Nombre del camión" value={editUnidadNombre} onChangeText={setEditUnidadNombre} />
+              <Input label="Nombre del tracker" value={editNombreTracker} onChangeText={setEditNombreTracker} />
+              <Button label="GUARDAR CAMBIOS" loading={guardandoEdicion} onPress={() => void guardarEdicion(d)} />
+              <Button label="CANCELAR" variant="secondary" onPress={() => setEditandoImei(null)} />
+            </View>
+          ) : (
+            <View key={d.imei} style={styles.card}>
+              <Text style={styles.nombre}>{d.unidadNombre}</Text>
+              <Text style={styles.detalle}>
+                {d.nombre} · IMEI {d.imei}
+              </Text>
+              <Text style={styles.detalle}>{haceCuanto(d.ultimoContactoMs)}</Text>
+              <Button label="EDITAR DATOS" variant="secondary" onPress={() => empezarEdicion(d)} />
+              {d.activo ? <Button label="DESACTIVAR" variant="danger" onPress={() => void desactivar(d)} /> : null}
+            </View>
+          )
+        )
       )}
     </Screen>
   );
