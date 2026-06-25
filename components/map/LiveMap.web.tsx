@@ -40,11 +40,13 @@ function FixSize() {
   return null;
 }
 
+const ZOOM_CON_CAMION = 16;
+
 function Recentrar({ unidades }: Props) {
   const map = useMap();
   useEffect(() => {
     if (unidades.length > 0) {
-      map.setView([unidades[0].posicion.lat, unidades[0].posicion.lng]);
+      map.setView([unidades[0].posicion.lat, unidades[0].posicion.lng], ZOOM_CON_CAMION);
     }
   }, [unidades, map]);
   return null;
