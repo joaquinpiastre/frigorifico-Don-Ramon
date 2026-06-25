@@ -5,6 +5,21 @@ import type { UnidadLive } from '@/types';
 
 const SAN_RAFAEL: [number, number] = [-34.6177, -68.3301];
 
+// El export web en modo SPA ("single") no usa app/+html.tsx, así que el <link>
+// a leaflet.css de ahí nunca llega al HTML final. Sin ese CSS, Leaflet no puede
+// posicionar los tiles correctamente y el mapa se ve roto. Lo inyectamos a mano.
+const LEAFLET_CSS_HREF = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+function asegurarLeafletCss() {
+  if (typeof document === 'undefined') return;
+  if (document.querySelector(`link[href="${LEAFLET_CSS_HREF}"]`)) return;
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = LEAFLET_CSS_HREF;
+  link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+  link.crossOrigin = '';
+  document.head.appendChild(link);
+}
+
 interface Props {
   unidades: UnidadLive[];
 }
@@ -36,6 +51,7 @@ function Recentrar({ unidades }: Props) {
 }
 
 export function LiveMap({ unidades }: Props) {
+  asegurarLeafletCss();
   return (
     <MapContainer center={SAN_RAFAEL} zoom={12} style={{ width: '100%', height: '100%' }}>
       <TileLayer
