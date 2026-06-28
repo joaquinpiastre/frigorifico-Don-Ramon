@@ -1,17 +1,24 @@
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { showAlert } from '@/utils/alert';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Screen } from '@/components/ui/Screen';
-import { COLORS } from '@/constants/colors';
-import { listarClientesApi } from '@/services/clientesApi';
-import { crearPedidoApi } from '@/services/pedidosApi';
-import { listarProductosApi } from '@/services/productosApi';
-import { buscarResPorCodigoApi } from '@/services/stockApi';
-import { listarUsuariosApi } from '@/services/usuariosApi';
-import type { Cliente, Producto, UsuarioAdmin } from '@/types';
+import { router } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { showAlert } from "@/utils/alert";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Screen } from "@/components/ui/Screen";
+import { COLORS } from "@/constants/colors";
+import { listarClientesApi } from "@/services/clientesApi";
+import { crearPedidoApi } from "@/services/pedidosApi";
+import { listarProductosApi } from "@/services/productosApi";
+import { listarLotesApi, listarResesApi } from "@/services/stockApi";
+import { listarUsuariosApi } from "@/services/usuariosApi";
+import type {
+  CategoriaProducto,
+  Cliente,
+  LoteIngreso,
+  Producto,
+  Res,
+  UsuarioAdmin,
+} from "@/types";
 
 interface Linea {
   productoId: number;
@@ -22,75 +29,143 @@ interface Linea {
   tropa?: string;
   resId?: number;
   cor?: string;
+  sinStock?: boolean;
+}
+
+// Para que "carne de res", "vaca" o "novillo" encuentren el producto "Carne vacuna", etc.
+const SINONIMOS: Partial<Record<CategoriaProducto, string[]>> = {
+  vacuno: ["vaca", "vacuno", "vacuna", "res", "ternera", "novillo", "carne"],
+  cerdo: ["cerdo", "chancho", "cochino", "lechón", "lechon", "porcino"],
+  toro: ["toro"],
+};
+
+function productoCoincide(producto: Producto, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return false;
+  if (producto.nombre.toLowerCase().includes(q)) return true;
+  const sinonimos = SINONIMOS[producto.categoria] ?? [];
+  return q
+    .split(/\s+/)
+    .some((token) => sinonimos.includes(token) || producto.categoria === token);
 }
 
 export default function NuevoPedido() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [repartidores, setRepartidores] = useState<UsuarioAdmin[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [resesStock, setResesStock] = useState<Res[]>([]);
+  const [lotes, setLotes] = useState<LoteIngreso[]>([]);
 
-  const [busquedaCliente, setBusquedaCliente] = useState('');
-  const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
-  const [repartidorSeleccionado, setRepartidorSeleccionado] = useState<UsuarioAdmin | null>(null);
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [clienteSeleccionado, setClienteSeleccionado] =
+    useState<Cliente | null>(null);
+  const [repartidorSeleccionado, setRepartidorSeleccionado] =
+    useState<UsuarioAdmin | null>(null);
 
-  const [busquedaProducto, setBusquedaProducto] = useState('');
-  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
-  const [cor, setCor] = useState('');
-  const [cantidad, setCantidad] = useState('');
-  const [precio, setPrecio] = useState('');
-  const [garron, setGarron] = useState('');
-  const [tropa, setTropa] = useState('');
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [productoSeleccionado, setProductoSeleccionado] =
+    useState<Producto | null>(null);
+  const [resSeleccionada, setResSeleccionada] = useState<Res | null>(null);
+  const [cor, setCor] = useState("");
+  const [cantidad, setCantidad] = useState("");
+  const [precio, setPrecio] = useState("");
+  const [garron, setGarron] = useState("");
+  const [tropa, setTropa] = useState("");
 
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    listarClientesApi().then(setClientes).catch(() => setClientes([]));
+    listarClientesApi()
+      .then(setClientes)
+      .catch(() => setClientes([]));
     listarUsuariosApi()
-      .then((us) => setRepartidores(us.filter((u) => u.rol === 'repartidor' && u.activo)))
+      .then((us) =>
+        setRepartidores(us.filter((u) => u.rol === "repartidor" && u.activo)),
+      )
       .catch(() => setRepartidores([]));
-    listarProductosApi().then(setProductos).catch(() => setProductos([]));
+    listarProductosApi()
+      .then(setProductos)
+      .catch(() => setProductos([]));
+    listarResesApi({ estado: "en_stock", limit: 500 })
+      .then(setResesStock)
+      .catch(() => setResesStock([]));
+    listarLotesApi()
+      .then(setLotes)
+      .catch(() => setLotes([]));
   }, []);
+
+  const lotesPorId = useMemo(
+    () => new Map(lotes.map((l) => [l.id, l])),
+    [lotes],
+  );
 
   const clientesFiltrados = useMemo(() => {
     const q = busquedaCliente.trim().toLowerCase();
     if (!q) return clientes.slice(0, 15);
-    return clientes.filter((c) => c.nombre.toLowerCase().includes(q)).slice(0, 15);
+    return clientes
+      .filter((c) => c.nombre.toLowerCase().includes(q))
+      .slice(0, 15);
   }, [clientes, busquedaCliente]);
 
   const productosFiltrados = useMemo(() => {
-    const q = busquedaProducto.trim().toLowerCase();
-    if (!q) return [];
-    return productos.filter((p) => p.nombre.toLowerCase().includes(q)).slice(0, 8);
+    if (!busquedaProducto.trim()) return [];
+    return productos
+      .filter((p) => productoCoincide(p, busquedaProducto))
+      .slice(0, 8);
   }, [productos, busquedaProducto]);
+
+  const resesDelTipo = useMemo(() => {
+    if (!productoSeleccionado?.tieneCodigoBarra) return [];
+    return resesStock.filter(
+      (r) => r.tipo === (productoSeleccionado.categoria as Res["tipo"]),
+    );
+  }, [resesStock, productoSeleccionado]);
 
   const elegirProducto = (p: Producto) => {
     setProductoSeleccionado(p);
-    setBusquedaProducto('');
-    setCor('');
-    setCantidad('');
-    setPrecio('');
-    setGarron('');
-    setTropa('');
+    setBusquedaProducto("");
+    setResSeleccionada(null);
+    setCor("");
+    setCantidad("");
+    setPrecio("");
+    setGarron("");
+    setTropa("");
   };
 
-  const agregarLinea = async () => {
-    if (!productoSeleccionado) return;
-    const cantidadNum = Number(cantidad.replace(',', '.'));
-    const precioNum = Number(precio.replace(',', '.'));
-    if (!cantidadNum || cantidadNum <= 0 || !precioNum || precioNum < 0) {
-      showAlert('Pedido', 'Completá cantidad y precio.');
-      return;
-    }
+  const cancelarSeleccionProducto = () => {
+    setProductoSeleccionado(null);
+    setResSeleccionada(null);
+    setCor("");
+    setCantidad("");
+    setPrecio("");
+    setGarron("");
+    setTropa("");
+  };
 
-    let resId: number | undefined;
-    if (productoSeleccionado.tieneCodigoBarra && cor.trim()) {
-      const res = await buscarResPorCodigoApi(cor.trim());
-      if (!res) {
-        showAlert('Pedido', 'No se encontró una res con ese código.');
-        return;
-      }
-      resId = res.id;
+  const elegirRes = (res: Res) => {
+    setResSeleccionada(res);
+    setCor(res.cor);
+    setGarron(res.garron ?? "");
+    setTropa(lotesPorId.get(res.loteId)?.numeroTropa ?? "");
+    setCantidad(String(res.kilosDisponibles));
+  };
+
+  const quitarResSeleccionada = () => {
+    setResSeleccionada(null);
+    setCor("");
+    setGarron("");
+    setTropa("");
+    setCantidad("");
+  };
+
+  const agregarLinea = () => {
+    if (!productoSeleccionado) return;
+    const cantidadNum = Number(cantidad.replace(",", "."));
+    const precioNum = Number(precio.replace(",", "."));
+    if (!cantidadNum || cantidadNum <= 0 || !precioNum || precioNum < 0) {
+      showAlert("Pedido", "Completá cantidad y precio.");
+      return;
     }
 
     setLineas((prev) => [
@@ -102,23 +177,26 @@ export default function NuevoPedido() {
         precio: precioNum,
         garron: garron.trim() || undefined,
         tropa: tropa.trim() || undefined,
-        resId,
-        cor: cor.trim() || undefined,
+        resId: resSeleccionada?.id,
+        cor: resSeleccionada?.cor ?? (cor.trim() || undefined),
+        sinStock: productoSeleccionado.tieneCodigoBarra && !resSeleccionada,
       },
     ]);
-    setProductoSeleccionado(null);
-    setCor('');
-    setCantidad('');
-    setPrecio('');
-    setGarron('');
-    setTropa('');
+    cancelarSeleccionProducto();
   };
 
   const total = lineas.reduce((acc, l) => acc + l.cantidad * l.precio, 0);
 
   const guardarPedido = async () => {
-    if (!clienteSeleccionado || !repartidorSeleccionado || lineas.length === 0) {
-      showAlert('Pedido', 'Elegí cliente, repartidor y agregá al menos una línea.');
+    if (
+      !clienteSeleccionado ||
+      !repartidorSeleccionado ||
+      lineas.length === 0
+    ) {
+      showAlert(
+        "Pedido",
+        "Elegí cliente, repartidor y agregá al menos una línea.",
+      );
       return;
     }
     setGuardando(true);
@@ -137,30 +215,50 @@ export default function NuevoPedido() {
       });
       router.replace(`/(admin)/pedidos/${pedidoId}`);
     } catch (e) {
-      showAlert('Pedido', e instanceof Error ? e.message : 'No se pudo crear el pedido.');
+      showAlert(
+        "Pedido",
+        e instanceof Error ? e.message : "No se pudo crear el pedido.",
+      );
     } finally {
       setGuardando(false);
     }
   };
 
   return (
-    <Screen title="Nuevo pedido" subtitle="Cliente, repartidor y mercadería a entregar" scrollable>
+    <Screen
+      title="Nuevo pedido"
+      subtitle="Cliente, repartidor y mercadería a entregar"
+      scrollable
+    >
       <View style={styles.card}>
         <Text style={styles.seccion}>Cliente</Text>
         {clienteSeleccionado ? (
           <View style={styles.filaSeleccion}>
-            <Text style={styles.seleccionTexto}>{clienteSeleccionado.nombre}</Text>
-            <Button label="CAMBIAR" variant="secondary" onPress={() => setClienteSeleccionado(null)} />
+            <Text style={styles.seleccionTexto}>
+              {clienteSeleccionado.nombre}
+            </Text>
+            <Button
+              label="CAMBIAR"
+              variant="secondary"
+              onPress={() => setClienteSeleccionado(null)}
+            />
           </View>
         ) : (
           <>
-            <Input label="Buscar cliente" value={busquedaCliente} onChangeText={setBusquedaCliente} />
+            <Input
+              label="Buscar cliente"
+              value={busquedaCliente}
+              onChangeText={setBusquedaCliente}
+            />
             <FlatList
               data={clientesFiltrados}
               keyExtractor={(c) => String(c.id)}
               scrollEnabled={false}
               renderItem={({ item }) => (
-                <Pressable style={styles.opcionCard} onPress={() => setClienteSeleccionado(item)}>
+                <Pressable
+                  style={styles.opcionCard}
+                  onPress={() => setClienteSeleccionado(item)}
+                >
                   <Text style={styles.opcionTexto}>{item.nombre}</Text>
                 </Pressable>
               )}
@@ -175,10 +273,18 @@ export default function NuevoPedido() {
           {repartidores.map((r) => (
             <Pressable
               key={r.id}
-              style={[styles.chip, repartidorSeleccionado?.id === r.id && styles.chipActivo]}
+              style={[
+                styles.chip,
+                repartidorSeleccionado?.id === r.id && styles.chipActivo,
+              ]}
               onPress={() => setRepartidorSeleccionado(r)}
             >
-              <Text style={[styles.chipTexto, repartidorSeleccionado?.id === r.id && styles.chipTextoActivo]}>
+              <Text
+                style={[
+                  styles.chipTexto,
+                  repartidorSeleccionado?.id === r.id && styles.chipTextoActivo,
+                ]}
+              >
                 {r.nombre}
               </Text>
             </Pressable>
@@ -190,27 +296,139 @@ export default function NuevoPedido() {
         <Text style={styles.seccion}>Agregar línea</Text>
         {productoSeleccionado ? (
           <>
-            <Text style={styles.seleccionTexto}>{productoSeleccionado.nombre}</Text>
+            <Text style={styles.seleccionTexto}>
+              {productoSeleccionado.nombre}
+            </Text>
+
             {productoSeleccionado.tieneCodigoBarra ? (
-              <Input label="Código (Cor) de la res" value={cor} onChangeText={setCor} />
+              <>
+                <Text style={styles.subSeccion}>Elegí la unidad en stock</Text>
+                {resesDelTipo.length === 0 ? (
+                  <Text style={styles.aviso}>
+                    ⚠️ No tenés stock de {productoSeleccionado.nombre} en este
+                    momento.
+                  </Text>
+                ) : (
+                  <FlatList
+                    data={resesDelTipo}
+                    keyExtractor={(r) => String(r.id)}
+                    scrollEnabled={false}
+                    renderItem={({ item }) => (
+                      <Pressable
+                        style={[
+                          styles.opcionCard,
+                          resSeleccionada?.id === item.id &&
+                            styles.opcionCardActiva,
+                        ]}
+                        onPress={() => elegirRes(item)}
+                      >
+                        <Text style={styles.opcionTexto}>
+                          Cor {item.cor}
+                          {item.garron ? ` · Garrón ${item.garron}` : ""}
+                        </Text>
+                        <Text style={styles.sub}>
+                          {item.kilosDisponibles} kg disponibles
+                          {item.clasificacion ? ` · ${item.clasificacion}` : ""}
+                        </Text>
+                      </Pressable>
+                    )}
+                  />
+                )}
+
+                {resSeleccionada ? (
+                  <View style={styles.filaSeleccion}>
+                    <Text style={styles.sub}>
+                      Vinculado a Cor {resSeleccionada.cor}
+                      {resSeleccionada.garron
+                        ? ` · Garrón ${resSeleccionada.garron}`
+                        : ""}
+                    </Text>
+                    <Button
+                      label="QUITAR"
+                      variant="secondary"
+                      onPress={quitarResSeleccionada}
+                    />
+                  </View>
+                ) : (
+                  <Text style={styles.sub}>
+                    {resesDelTipo.length > 0
+                      ? "O agregalo sin vincularlo a una unidad puntual del stock:"
+                      : "Podés agregarlo igual, sin vincularlo a stock:"}
+                  </Text>
+                )}
+              </>
             ) : null}
-            <Input label={`Cantidad (${productoSeleccionado.unidad})`} value={cantidad} onChangeText={setCantidad} keyboardType="decimal-pad" />
-            <Input label="Precio" value={precio} onChangeText={setPrecio} keyboardType="decimal-pad" />
-            <Input label="Garrón (opcional)" value={garron} onChangeText={setGarron} />
-            <Input label="Tropa (opcional)" value={tropa} onChangeText={setTropa} />
-            <Button label="AGREGAR LÍNEA" onPress={() => void agregarLinea()} />
-            <Button label="CANCELAR" variant="secondary" onPress={() => setProductoSeleccionado(null)} />
+
+            <Input
+              label={`Cantidad (${productoSeleccionado.unidad})`}
+              value={cantidad}
+              onChangeText={setCantidad}
+              keyboardType="decimal-pad"
+              editable={!resSeleccionada}
+            />
+            <Input
+              label="Precio"
+              value={precio}
+              onChangeText={setPrecio}
+              keyboardType="decimal-pad"
+            />
+
+            {!resSeleccionada ? (
+              <>
+                <Input
+                  label="Garrón (opcional)"
+                  value={garron}
+                  onChangeText={setGarron}
+                />
+                <Input
+                  label="Tropa (opcional)"
+                  value={tropa}
+                  onChangeText={setTropa}
+                />
+              </>
+            ) : null}
+
+            {productoSeleccionado.tieneCodigoBarra && !resSeleccionada ? (
+              <Text style={styles.aviso}>
+                ⚠️ Esta línea no va a estar vinculada a stock existente.
+              </Text>
+            ) : null}
+
+            <Button label="AGREGAR LÍNEA" onPress={agregarLinea} />
+            <Button
+              label="CANCELAR"
+              variant="secondary"
+              onPress={cancelarSeleccionProducto}
+            />
           </>
         ) : (
           <>
-            <Input label="Buscar producto" value={busquedaProducto} onChangeText={setBusquedaProducto} />
+            <Input
+              label="Buscar producto"
+              value={busquedaProducto}
+              onChangeText={setBusquedaProducto}
+              placeholder="Ej: carne de res, cerdo, chorizo…"
+            />
             <FlatList
               data={productosFiltrados}
               keyExtractor={(p) => String(p.id)}
               scrollEnabled={false}
               renderItem={({ item }) => (
-                <Pressable style={styles.opcionCard} onPress={() => elegirProducto(item)}>
+                <Pressable
+                  style={styles.opcionCard}
+                  onPress={() => elegirProducto(item)}
+                >
                   <Text style={styles.opcionTexto}>{item.nombre}</Text>
+                  {item.tieneCodigoBarra ? (
+                    <Text style={styles.sub}>
+                      {
+                        resesStock.filter(
+                          (r) => r.tipo === (item.categoria as Res["tipo"]),
+                        ).length
+                      }{" "}
+                      unidad(es) en stock
+                    </Text>
+                  ) : null}
                 </Pressable>
               )}
             />
@@ -224,17 +442,27 @@ export default function NuevoPedido() {
           {lineas.map((l, i) => (
             <View key={i} style={styles.lineaCard}>
               <Text style={styles.opcionTexto}>
-                {l.productoNombre} · {l.cantidad} × ${l.precio} = ${(l.cantidad * l.precio).toFixed(2)}
+                {l.productoNombre} · {l.cantidad} × ${l.precio} = $
+                {(l.cantidad * l.precio).toFixed(2)}
               </Text>
-              {l.garron || l.tropa ? (
+              {l.cor || l.garron || l.tropa ? (
                 <Text style={styles.sub}>
-                  {l.garron ? `Garrón ${l.garron}` : ''} {l.tropa ? `· Tropa ${l.tropa}` : ''}
+                  {l.cor ? `Cor ${l.cor} · ` : ""}
+                  {l.garron ? `Garrón ${l.garron} · ` : ""}
+                  {l.tropa ? `Tropa ${l.tropa}` : ""}
                 </Text>
+              ) : null}
+              {l.sinStock ? (
+                <Text style={styles.aviso}>⚠️ Sin stock vinculado</Text>
               ) : null}
             </View>
           ))}
           <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
-          <Button label="GUARDAR PEDIDO" loading={guardando} onPress={() => void guardarPedido()} />
+          <Button
+            label="GUARDAR PEDIDO"
+            loading={guardando}
+            onPress={() => void guardarPedido()}
+          />
         </View>
       ) : null}
     </Screen>
@@ -242,25 +470,84 @@ export default function NuevoPedido() {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 8, marginBottom: 12 },
-  seccion: { fontFamily: 'Poppins_700Bold', fontSize: 14, color: COLORS.grisTexto },
-  fila: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  filaSeleccion: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  seleccionTexto: { fontFamily: 'Poppins_700Bold', fontSize: 14, color: COLORS.doradoOscuro },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    gap: 8,
+    marginBottom: 12,
+  },
+  seccion: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 14,
+    color: COLORS.grisTexto,
+  },
+  subSeccion: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: COLORS.grisSecundario,
+    marginTop: 4,
+  },
+  fila: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  filaSeleccion: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  seleccionTexto: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 14,
+    color: COLORS.doradoOscuro,
+  },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#dcd2c8',
+    borderColor: "#dcd2c8",
   },
   chipActivo: { backgroundColor: COLORS.negro, borderColor: COLORS.negro },
-  chipTexto: { fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: COLORS.grisTexto },
-  chipTextoActivo: { color: '#fff' },
-  opcionCard: { backgroundColor: COLORS.grisClaro, borderRadius: 12, padding: 10, marginTop: 6 },
-  opcionTexto: { fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: COLORS.grisTexto },
-  lineaCard: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.grisClaro },
-  sub: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },
-  total: { fontFamily: 'Poppins_700Bold', fontSize: 16, color: COLORS.doradoOscuro, textAlign: 'right', marginTop: 6 },
+  chipTexto: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: COLORS.grisTexto,
+  },
+  chipTextoActivo: { color: "#fff" },
+  opcionCard: {
+    backgroundColor: COLORS.grisClaro,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 6,
+    gap: 2,
+  },
+  opcionCardActiva: { backgroundColor: COLORS.doradoClaro },
+  opcionTexto: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+  },
+  lineaCard: {
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grisClaro,
+    gap: 2,
+  },
+  sub: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: COLORS.grisSecundario,
+  },
+  aviso: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: COLORS.advertencia,
+  },
+  total: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 16,
+    color: COLORS.doradoOscuro,
+    textAlign: "right",
+    marginTop: 6,
+  },
 });

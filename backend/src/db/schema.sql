@@ -174,6 +174,21 @@ CREATE TABLE IF NOT EXISTS productos (
 CREATE INDEX IF NOT EXISTS idx_productos_nombre ON productos (nombre);
 CREATE INDEX IF NOT EXISTS idx_productos_activo ON productos (activo);
 
+-- Productos genéricos por tipo de res (vacuno/cerdo/toro/otro), para poder armar pedidos
+-- de carne con código de barras aunque el admin no haya dado de alta un producto puntual.
+-- tiene_codigo_barra = true marca que las unidades vendibles son reses concretas (tabla reses).
+INSERT INTO productos (nombre, categoria, tiene_codigo_barra, unidad)
+SELECT v.nombre, v.categoria, true, 'kg'
+FROM (VALUES
+  ('Carne vacuna', 'vacuno'),
+  ('Cerdo', 'cerdo'),
+  ('Toro', 'toro'),
+  ('Otro (con código de barras)', 'otro')
+) AS v(nombre, categoria)
+WHERE NOT EXISTS (
+  SELECT 1 FROM productos p WHERE p.categoria = v.categoria AND p.tiene_codigo_barra = true
+);
+
 -- Ingreso de stock de productos SIN código de barras, registrado por el operador
 -- (buscar producto manual + cantidad + guardar). Para vacuno/cerdo con barcode, el
 -- ingreso sigue siendo una fila en "reses".

@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS } from '@/constants/colors';
+import { useAppStore } from '@/store/useAppStore';
 
 const INSTAGRAM_URL = 'https://www.instagram.com/donramonfrigorifico/';
 const TELEFONO_1 = '2604578682';
@@ -52,9 +53,21 @@ function abrirUrl(url: string) {
   Linking.openURL(url).catch(() => {});
 }
 
+function rutaDelPanel(rol: 'admin' | 'operador' | 'repartidor'): string {
+  if (rol === 'operador') return '/(operador)';
+  if (rol === 'repartidor') return '/(repartidor)';
+  return '/(admin)';
+}
+
 export default function LandingPage() {
   const { width } = useWindowDimensions();
   const ancho = width < 700 ? '100%' : width < 1000 ? '47%' : '30%';
+  const usuario = useAppStore((s) => s.usuario);
+
+  const irAlAccesoInterno = () => {
+    router.push((usuario ? rutaDelPanel(usuario.rol) : '/(auth)/login') as never);
+  };
+  const textoAcceso = usuario ? 'Ir a mi panel' : 'Iniciar sesión';
 
   return (
     <View style={styles.root}>
@@ -71,8 +84,8 @@ export default function LandingPage() {
             </View>
             <Text style={styles.navTexto}>Don Ramón</Text>
           </View>
-          <Pressable style={styles.navBoton} onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.navBotonTexto}>Iniciar sesión</Text>
+          <Pressable style={styles.navBoton} onPress={irAlAccesoInterno}>
+            <Text style={styles.navBotonTexto}>{textoAcceso}</Text>
           </Pressable>
         </View>
 
@@ -168,8 +181,8 @@ export default function LandingPage() {
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerTexto}>© {new Date().getFullYear()} Frigorífico Don Ramón</Text>
-          <Pressable onPress={() => router.push('/(auth)/login')}>
-            <Text style={styles.footerLink}>Acceso interno</Text>
+          <Pressable onPress={irAlAccesoInterno}>
+            <Text style={styles.footerLink}>{usuario ? 'Ir a mi panel' : 'Acceso interno'}</Text>
           </Pressable>
         </View>
       </ScrollView>
