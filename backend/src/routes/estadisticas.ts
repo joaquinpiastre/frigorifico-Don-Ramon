@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../auth.js';
+import { requireAdmin, requireAuth } from '../auth.js';
 import { pool } from '../db/client.js';
 
 export const estadisticasRouter = Router();
@@ -86,6 +86,153 @@ estadisticasRouter.get('/admin/estadisticas', requireAuth, async (_req, res) => 
       clienteId: r.id,
       clienteNombre: r.nombre,
       monto: Number(r.monto),
+    })),
+  });
+});
+
+// GET /admin/estadisticas/dashboard — panel analítico completo (solo admin).
+estadisticasRouter.get('/admin/estadisticas/dashboard', requireAuth, requireAdmin, async (_req, res) => {
+  const [
+    ventasPorDia,
+    ventasPorMes,
+    topClientes,
+    topProductosVendidos,
+    stockPorClasificacion,
+    stockPorProducto,
+    metodosPago,
+    pedidosPorEstado,
+    kpis,
+    clientesNuevosPorMes,
+  ] = await Promise.all([
+    pool.query<{ fecha: string; cantidad: string; total: string }>(
+      `select fecha::date::text as fecha, count(*) as cantidad, coalesce(sum(total_importe), 0) as total
+       from ventas
+       where fecha >= current_date - interval '29 days'
+       group by fecha::date
+       order by fecha::date`
+    ),
+    pool.query<{ mes: string; cantidad: string; total: string }>(
+      `select to_char(date_trunc('month', fecha), 'YYYY-MM') as mes,
+              count(*) as cantidad, coalesce(sum(total_importe), 0) as total
+       from ventas
+       where fecha >= date_trunc('month', now()) - interval '11 months'
+       group by date_trunc('month', fecha)
+       order by date_trunc('month', fecha)`
+    ),
+    pool.query<{ id: number; nombre: string; total: string; cantidad: string }>(
+      `select c.id, c.nombre, sum(v.total_importe) as total, count(*) as cantidad
+       from ventas v join clientes c on c.id = v.cliente_id
+       group by c.id, c.nombre
+       order by total desc
+       limit 10`
+    ),
+    pool.query<{ descripcion: string; kilos: string; importe: string; piezas: string }>(
+      `select descripcion, coalesce(sum(kilos), 0) as kilos,
+              coalesce(sum(importe), 0) as importe, count(*) as piezas
+       from venta_items
+       group by descripcion
+       order by importe desc
+       limit 10`
+    ),
+    pool.query<{ clasificacion: string; cantidad: string; kilos: string }>(
+      `select coalesce(clasificacion, 'Sin clasificar') as clasificacion,
+              count(*) as cantidad, coalesce(sum(kilos_disponibles), 0) as kilos
+       from reses
+       where estado = 'en_stock'
+       group by coalesce(clasificacion, 'Sin clasificar')
+       order by kilos desc`
+    ),
+    pool.query<{ nombre: string; categoria: string; cantidad: string }>(
+      `select p.nombre, p.categoria, coalesce(sum(i.cantidad_disponible), 0) as cantidad
+       from items_stock i
+       join productos p on p.id = i.producto_id
+       group by p.nombre, p.categoria
+       order by cantidad desc
+       limit 10`
+    ),
+    pool.query<{ metodo: string; cantidad: string; total: string }>(
+      `select coalesce(metodo, 'Sin especificar') as metodo, count(*) as cantidad, coalesce(sum(monto), 0) as total
+       from pagos
+       group by coalesce(metodo, 'Sin especificar')
+       order by total desc`
+    ),
+    pool.query<{ estado: string; cantidad: string }>(
+      `select estado, count(*) as cantidad from pedidos group by estado`
+    ),
+    pool.query<{
+      ticketPromedio: string;
+      kilosVendidosMes: string;
+      clientesActivosMes: string;
+      ventasTotalHistorico: string;
+    }>(
+      `select
+         coalesce((select avg(total_importe) from ventas), 0) as "ticketPromedio",
+         coalesce((select sum(kilos) from venta_items vi join ventas v on v.id = vi.venta_id
+                   where date_trunc('month', v.fecha) = date_trunc('month', now())), 0) as "kilosVendidosMes",
+         coalesce((select count(distinct cliente_id) from ventas
+                   where date_trunc('month', fecha) = date_trunc('month', now())), 0) as "clientesActivosMes",
+         coalesce((select sum(total_importe) from ventas), 0) as "ventasTotalHistorico"`
+    ),
+    pool.query<{ mes: string; cantidad: string }>(
+      `select to_char(date_trunc('month', created_at), 'YYYY-MM') as mes, count(*) as cantidad
+       from clientes
+       where created_at >= date_trunc('month', now()) - interval '11 months'
+       group by date_trunc('month', created_at)
+       order by date_trunc('month', created_at)`
+    ),
+  ]);
+
+  res.json({
+    ventasPorDia: ventasPorDia.rows.map((r) => ({
+      fecha: r.fecha,
+      cantidad: Number(r.cantidad),
+      total: Number(r.total),
+    })),
+    ventasPorMes: ventasPorMes.rows.map((r) => ({
+      mes: r.mes,
+      cantidad: Number(r.cantidad),
+      total: Number(r.total),
+    })),
+    topClientes: topClientes.rows.map((r) => ({
+      id: r.id,
+      nombre: r.nombre,
+      total: Number(r.total),
+      cantidad: Number(r.cantidad),
+    })),
+    topProductosVendidos: topProductosVendidos.rows.map((r) => ({
+      descripcion: r.descripcion,
+      kilos: Number(r.kilos),
+      importe: Number(r.importe),
+      piezas: Number(r.piezas),
+    })),
+    stockPorClasificacion: stockPorClasificacion.rows.map((r) => ({
+      clasificacion: r.clasificacion,
+      cantidad: Number(r.cantidad),
+      kilos: Number(r.kilos),
+    })),
+    stockPorProducto: stockPorProducto.rows.map((r) => ({
+      nombre: r.nombre,
+      categoria: r.categoria,
+      cantidad: Number(r.cantidad),
+    })),
+    metodosPago: metodosPago.rows.map((r) => ({
+      metodo: r.metodo,
+      cantidad: Number(r.cantidad),
+      total: Number(r.total),
+    })),
+    pedidosPorEstado: pedidosPorEstado.rows.map((r) => ({
+      estado: r.estado,
+      cantidad: Number(r.cantidad),
+    })),
+    kpis: {
+      ticketPromedio: Number(kpis.rows[0].ticketPromedio),
+      kilosVendidosMes: Number(kpis.rows[0].kilosVendidosMes),
+      clientesActivosMes: Number(kpis.rows[0].clientesActivosMes),
+      ventasTotalHistorico: Number(kpis.rows[0].ventasTotalHistorico),
+    },
+    clientesNuevosPorMes: clientesNuevosPorMes.rows.map((r) => ({
+      mes: r.mes,
+      cantidad: Number(r.cantidad),
     })),
   });
 });

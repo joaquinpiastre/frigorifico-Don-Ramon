@@ -83,7 +83,7 @@ clientesRouter.get('/admin/clientes/:id', requireAuth, async (req, res) => {
     [id]
   );
   const pagos = await pool.query(
-    `select id, venta_id as "ventaId", monto, metodo, fecha
+    `select id, venta_id as "ventaId", monto, metodo, dias_cheque as "diasCheque", fecha
      from pagos where cliente_id = $1 order by fecha desc`,
     [id]
   );
@@ -138,11 +138,14 @@ clientesRouter.patch('/admin/clientes/:id', requireAuth, async (req, res) => {
   res.json({ cliente: rows[0] });
 });
 
+const METODOS_PAGO = ['efectivo', 'transferencia', 'cheque'] as const;
+
 const pagoSchema = z.object({
   clienteId: z.number().int(),
   ventaId: z.number().int().optional(),
   monto: z.number().positive(),
-  metodo: z.string().optional(),
+  metodo: z.enum(METODOS_PAGO).optional(),
+  diasCheque: z.number().int().positive().optional(),
 });
 
 // POST /admin/pagos — registra un pago de un cliente (cuenta corriente)
@@ -152,12 +155,17 @@ clientesRouter.post('/admin/pagos', requireAuth, async (req, res) => {
     res.status(400).json({ error: 'Datos inválidos.', detalle: parsed.error.flatten() });
     return;
   }
-  const { clienteId, ventaId, monto, metodo } = parsed.data;
+  const { clienteId, ventaId, monto, metodo, diasCheque } = parsed.data;
+  if (metodo !== 'cheque' && diasCheque) {
+    res.status(400).json({ error: 'Los días de cheque solo aplican al método "cheque".' });
+    return;
+  }
   const { rows } = await pool.query(
-    `insert into pagos (cliente_id, venta_id, monto, metodo)
-     values ($1, $2, $3, $4)
-     returning id, cliente_id as "clienteId", venta_id as "ventaId", monto, metodo, fecha`,
-    [clienteId, ventaId ?? null, monto, metodo ?? null]
+    `insert into pagos (cliente_id, venta_id, monto, metodo, dias_cheque)
+     values ($1, $2, $3, $4, $5)
+     returning id, cliente_id as "clienteId", venta_id as "ventaId", monto, metodo,
+               dias_cheque as "diasCheque", fecha`,
+    [clienteId, ventaId ?? null, monto, metodo ?? null, diasCheque ?? null]
   );
   res.json({ pago: rows[0] });
 });

@@ -5,10 +5,18 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { MetodoPagoSelector } from '@/components/ui/MetodoPagoSelector';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { obtenerClienteApi, registrarPagoApi } from '@/services/clientesApi';
-import { CONDICION_IVA_LABEL, type Cliente, type Pago, type VentaResumen } from '@/types';
+import {
+  CONDICION_IVA_LABEL,
+  METODO_PAGO_LABEL,
+  type Cliente,
+  type MetodoPago,
+  type Pago,
+  type VentaResumen,
+} from '@/types';
 
 export default function ClienteDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,6 +29,8 @@ export default function ClienteDetalle() {
   const [cargando, setCargando] = useState(true);
 
   const [monto, setMonto] = useState('');
+  const [metodoPago, setMetodoPago] = useState<MetodoPago | null>(null);
+  const [diasCheque, setDiasCheque] = useState('');
   const [registrandoPago, setRegistrandoPago] = useState(false);
 
   const cargar = useCallback(() => {
@@ -48,10 +58,26 @@ export default function ClienteDetalle() {
       showAlert('Pago', 'Ingresá un monto válido.');
       return;
     }
+    if (!metodoPago) {
+      showAlert('Pago', 'Elegí la forma de pago.');
+      return;
+    }
+    const diasChequeNum = Number(diasCheque);
+    if (metodoPago === 'cheque' && (!diasChequeNum || diasChequeNum <= 0)) {
+      showAlert('Pago', 'Indicá a cuántos días es el cheque.');
+      return;
+    }
     setRegistrandoPago(true);
     try {
-      await registrarPagoApi({ clienteId, monto: montoNum });
+      await registrarPagoApi({
+        clienteId,
+        monto: montoNum,
+        metodo: metodoPago,
+        diasCheque: metodoPago === 'cheque' ? diasChequeNum : undefined,
+      });
       setMonto('');
+      setMetodoPago(null);
+      setDiasCheque('');
       cargar();
     } catch (e) {
       showAlert('Pago', e instanceof Error ? e.message : 'No se pudo registrar el pago.');
@@ -118,6 +144,12 @@ export default function ClienteDetalle() {
         <Text style={styles.label}>Saldo actual</Text>
         <Text style={[styles.saldo, saldo > 0 && styles.saldoDeudor]}>${saldo.toFixed(2)}</Text>
         <Input label="Registrar pago" value={monto} onChangeText={setMonto} keyboardType="decimal-pad" />
+        <MetodoPagoSelector
+          metodo={metodoPago}
+          onMetodoChange={setMetodoPago}
+          diasCheque={diasCheque}
+          onDiasChequeChange={setDiasCheque}
+        />
         <Button label="REGISTRAR PAGO" loading={registrandoPago} onPress={() => void registrarPago()} />
       </View>
 
@@ -145,6 +177,10 @@ export default function ClienteDetalle() {
         pagos.map((p) => (
           <View key={p.id} style={styles.card}>
             <Text style={styles.nombre}>${p.monto.toFixed(2)}</Text>
+            <Text style={styles.label}>
+              {p.metodo ? METODO_PAGO_LABEL[p.metodo] : 'Sin especificar'}
+              {p.metodo === 'cheque' && p.diasCheque ? ` · a ${p.diasCheque} días` : ''}
+            </Text>
             <Text style={styles.label}>{new Date(p.fecha).toLocaleDateString('es-AR')}</Text>
           </View>
         ))

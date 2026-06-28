@@ -51,7 +51,7 @@ export default function AdminHome() {
             <View style={styles.statCard}>
               <Text style={styles.statLabel}>Stock disponible</Text>
               <Text style={styles.statValor}>{stats.stock.kilos.toFixed(0)} kg</Text>
-              <Text style={styles.statSub}>{stats.stock.reses} reses</Text>
+              <Text style={styles.statSub}>{stats.stock.reses} ítems</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statLabel}>Por cobrar</Text>
@@ -159,6 +159,12 @@ export default function AdminHome() {
       />
       {esAdmin ? (
         <>
+          <Button
+            label="ESTADÍSTICAS"
+            variant="secondary"
+            iconLeft={<Ionicons name="stats-chart-outline" size={18} color={COLORS.negro} />}
+            onPress={() => router.push('/(admin)/estadisticas')}
+          />
           <Button
             label="PRODUCTOS"
             variant="secondary"

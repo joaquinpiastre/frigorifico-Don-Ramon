@@ -58,11 +58,20 @@ export interface VentaResumen {
   totalImporte: number;
 }
 
+export type MetodoPago = 'efectivo' | 'transferencia' | 'cheque';
+
+export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  cheque: 'Cheque',
+};
+
 export interface Pago {
   id: number;
   ventaId: number | null;
   monto: number;
-  metodo: string | null;
+  metodo: MetodoPago | null;
+  diasCheque: number | null;
   fecha: string;
 }
 
@@ -130,6 +139,78 @@ export interface Estadisticas {
   actividadReciente: ActividadItem[];
   entregasHoy: EntregaHoyItem[];
   ventasHoyPorCliente: VentaHoyPorClienteItem[];
+}
+
+export interface PuntoVentaDiaria {
+  fecha: string;
+  cantidad: number;
+  total: number;
+}
+
+export interface PuntoVentaMensual {
+  mes: string;
+  cantidad: number;
+  total: number;
+}
+
+export interface TopCliente {
+  id: number;
+  nombre: string;
+  total: number;
+  cantidad: number;
+}
+
+export interface TopProductoVendido {
+  descripcion: string;
+  kilos: number;
+  importe: number;
+  piezas: number;
+}
+
+export interface StockPorClasificacion {
+  clasificacion: string;
+  cantidad: number;
+  kilos: number;
+}
+
+export interface StockPorProducto {
+  nombre: string;
+  categoria: string;
+  cantidad: number;
+}
+
+export interface MetodoPagoResumen {
+  metodo: string;
+  cantidad: number;
+  total: number;
+}
+
+export interface PedidoPorEstado {
+  estado: string;
+  cantidad: number;
+}
+
+export interface ClientesNuevosPorMes {
+  mes: string;
+  cantidad: number;
+}
+
+export interface EstadisticasDashboard {
+  ventasPorDia: PuntoVentaDiaria[];
+  ventasPorMes: PuntoVentaMensual[];
+  topClientes: TopCliente[];
+  topProductosVendidos: TopProductoVendido[];
+  stockPorClasificacion: StockPorClasificacion[];
+  stockPorProducto: StockPorProducto[];
+  metodosPago: MetodoPagoResumen[];
+  pedidosPorEstado: PedidoPorEstado[];
+  kpis: {
+    ticketPromedio: number;
+    kilosVendidosMes: number;
+    clientesActivosMes: number;
+    ventasTotalHistorico: number;
+  };
+  clientesNuevosPorMes: ClientesNuevosPorMes[];
 }
 
 export type CategoriaProducto = 'vacuno' | 'cerdo' | 'toro' | 'embutido' | 'otro';

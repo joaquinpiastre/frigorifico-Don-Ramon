@@ -1,4 +1,4 @@
-import type { Cliente, CondicionIva, Pago, VentaResumen } from '@/types';
+import type { Cliente, CondicionIva, MetodoPago, Pago, VentaResumen } from '@/types';
 import { apiRequest } from './apiClient';
 
 export async function listarClientesApi(): Promise<Cliente[]> {
@@ -50,7 +50,8 @@ export async function registrarPagoApi(input: {
   clienteId: number;
   ventaId?: number;
   monto: number;
-  metodo?: string;
+  metodo?: MetodoPago;
+  diasCheque?: number;
 }): Promise<Pago> {
   const data = await apiRequest<{ pago: Pago }>('/admin/pagos', {
     method: 'POST',

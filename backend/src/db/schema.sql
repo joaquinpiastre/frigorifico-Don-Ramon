@@ -140,9 +140,13 @@ CREATE TABLE IF NOT EXISTS pagos (
   venta_id BIGINT REFERENCES ventas(id),
   monto NUMERIC NOT NULL,
   metodo TEXT,
+  dias_cheque INTEGER,
   fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Por si la tabla ya existía de una corrida anterior del esquema.
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS dias_cheque INTEGER;
 
 CREATE INDEX IF NOT EXISTS idx_reses_estado ON reses (estado);
 CREATE INDEX IF NOT EXISTS idx_venta_items_venta ON venta_items (venta_id);

@@ -39,10 +39,10 @@ export default function StockIndex() {
   const kilosTotales = reses.reduce((acc, r) => acc + r.kilosDisponibles, 0);
 
   return (
-    <Screen title="Stock de reses" subtitle="Reses en stock" scrollable>
+    <Screen title="Stock" subtitle="Stock disponible" scrollable>
       <Button label="ESCANEAR ETIQUETA" onPress={() => router.push('/(admin)/stock/escanear')} />
       <Button
-        label="ALTA MANUAL DE RES"
+        label="ALTA MANUAL"
         variant="secondary"
         onPress={() => router.push('/(admin)/stock/nueva-res')}
       />
@@ -56,7 +56,7 @@ export default function StockIndex() {
       />
 
       <View style={styles.resumen}>
-        <Text style={styles.resumenTexto}>{reses.length} reses</Text>
+        <Text style={styles.resumenTexto}>{reses.length} ítems</Text>
         <Text style={styles.resumenTexto}>{kilosTotales.toFixed(0)} kg disponibles</Text>
       </View>
 
@@ -64,7 +64,7 @@ export default function StockIndex() {
         <ActivityIndicator color={COLORS.negro} style={{ marginTop: 20 }} />
       ) : reses.length === 0 ? (
         <Text style={styles.vacio}>
-          {busquedaActiva ? `Sin resultados para "${busquedaActiva}".` : 'No hay reses en stock.'}
+          {busquedaActiva ? `Sin resultados para "${busquedaActiva}".` : 'No hay stock disponible.'}
         </Text>
       ) : (
         reses.map((res) => (
