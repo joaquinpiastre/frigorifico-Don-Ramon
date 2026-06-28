@@ -111,10 +111,13 @@ resesRouter.patch(
   },
 );
 
+const TIPOS_RES = ["vacuno", "cerdo", "toro", "otro"] as const;
+
 const resSchema = z.object({
   loteId: z.number().int().optional(),
   cor: z.string().min(1),
   garron: z.string().optional(),
+  tipo: z.enum(TIPOS_RES).optional(),
   clasificacion: z.string().optional(),
   kilos: z.number().positive(),
 });
@@ -132,7 +135,7 @@ resesRouter.post(
         .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
       return;
     }
-    const { loteId, cor, garron, clasificacion, kilos } = parsed.data;
+    const { loteId, cor, garron, tipo, clasificacion, kilos } = parsed.data;
 
     const existente = await pool.query("select id from reses where cor = $1", [
       cor,
@@ -146,11 +149,18 @@ resesRouter.post(
 
     const loteIdFinal = loteId ?? (await obtenerLoteDefaultId());
     const { rows } = await pool.query(
-      `insert into reses (lote_id, cor, garron, clasificacion, kilos_ingreso, kilos_disponibles)
-     values ($1, $2, $3, $4, $5, $5)
-     returning id, lote_id as "loteId", cor, garron, clasificacion,
+      `insert into reses (lote_id, cor, garron, tipo, clasificacion, kilos_ingreso, kilos_disponibles)
+     values ($1, $2, $3, $4, $5, $6, $6)
+     returning id, lote_id as "loteId", cor, garron, tipo, clasificacion,
                kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado`,
-      [loteIdFinal, cor, garron ?? null, clasificacion ?? null, kilos],
+      [
+        loteIdFinal,
+        cor,
+        garron ?? null,
+        tipo ?? "vacuno",
+        clasificacion ?? null,
+        kilos,
+      ],
     );
     res.json({ res: rows[0] });
   },
@@ -169,11 +179,11 @@ resesRouter.get("/admin/reses", requireAuth, async (req, res) => {
   const limite = Math.min(Number(req.query.limit) || 100, 500);
 
   const { rows } = await pool.query(
-    `select id, lote_id as "loteId", cor, garron, clasificacion,
+    `select id, lote_id as "loteId", cor, garron, tipo, clasificacion,
             kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
      from reses
      where ($1::text is null or estado = $1)
-       and ($2::text is null or cor ilike $2 or garron ilike $2 or clasificacion ilike $2)
+       and ($2::text is null or cor ilike $2 or garron ilike $2 or clasificacion ilike $2 or tipo ilike $2)
        and ($3::int is null or lote_id = $3)
      order by created_at desc
      limit $4`,
@@ -184,6 +194,7 @@ resesRouter.get("/admin/reses", requireAuth, async (req, res) => {
 
 const actualizarResSchema = z.object({
   garron: z.string().trim().optional(),
+  tipo: z.enum(TIPOS_RES).optional(),
   clasificacion: z.string().trim().optional(),
   kilosDisponibles: z.number().nonnegative().optional(),
   estado: z.enum(["en_stock", "agotada"]).optional(),
@@ -202,21 +213,24 @@ resesRouter.patch(
         .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
       return;
     }
-    const { garron, clasificacion, kilosDisponibles, estado } = parsed.data;
+    const { garron, tipo, clasificacion, kilosDisponibles, estado } =
+      parsed.data;
     const id = Number(req.params.id);
 
     const { rows } = await pool.query(
       `update reses set
        garron = coalesce($2, garron),
-       clasificacion = coalesce($3, clasificacion),
-       kilos_disponibles = coalesce($4, kilos_disponibles),
-       estado = coalesce($5, estado)
+       tipo = coalesce($3, tipo),
+       clasificacion = coalesce($4, clasificacion),
+       kilos_disponibles = coalesce($5, kilos_disponibles),
+       estado = coalesce($6, estado)
      where id = $1
-     returning id, lote_id as "loteId", cor, garron, clasificacion,
+     returning id, lote_id as "loteId", cor, garron, tipo, clasificacion,
                kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado`,
       [
         id,
         garron ?? null,
+        tipo ?? null,
         clasificacion ?? null,
         kilosDisponibles ?? null,
         estado ?? null,
@@ -233,7 +247,7 @@ resesRouter.patch(
 // GET /admin/reses/:codigo — busca una res por el código de barras (Cor) escaneado
 resesRouter.get("/admin/reses/:codigo", requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    `select id, lote_id as "loteId", cor, garron, clasificacion,
+    `select id, lote_id as "loteId", cor, garron, tipo, clasificacion,
             kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
      from reses
      where cor = $1`,
@@ -269,12 +283,10 @@ resesRouter.delete(
       res.json({ ok: true });
     } catch (err) {
       if ((err as { code?: string }).code === "23503") {
-        res
-          .status(409)
-          .json({
-            error:
-              "No se puede eliminar: esta res ya tiene ventas o pedidos asociados.",
-          });
+        res.status(409).json({
+          error:
+            "No se puede eliminar: esta res ya tiene ventas o pedidos asociados.",
+        });
         return;
       }
       throw err;

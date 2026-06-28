@@ -27,20 +27,20 @@ export default function AdminHome() {
         onPress={() => router.push("/(admin)/estadisticas")}
       />
       <Button
+        label="HISTORIAL"
+        variant="secondary"
+        iconLeft={
+          <Ionicons name="calendar-outline" size={18} color={COLORS.negro} />
+        }
+        onPress={() => router.push("/(admin)/historial")}
+      />
+      <Button
         label="STOCK DE RESES"
         variant="secondary"
         iconLeft={
           <Ionicons name="cube-outline" size={18} color={COLORS.negro} />
         }
         onPress={() => router.push("/(admin)/stock")}
-      />
-      <Button
-        label="NUEVA VENTA"
-        variant="secondary"
-        iconLeft={
-          <Ionicons name="receipt-outline" size={18} color={COLORS.negro} />
-        }
-        onPress={() => router.push("/(admin)/ventas/nueva")}
       />
       <Button
         label="CLIENTES"

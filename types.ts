@@ -1,4 +1,4 @@
-export type RolUsuario = 'admin' | 'operador' | 'repartidor';
+export type RolUsuario = "admin" | "operador" | "repartidor";
 
 export interface Usuario {
   id: string;
@@ -16,26 +16,37 @@ export interface LoteIngreso {
   kilosVivosTotal: number | null;
 }
 
-export type EstadoRes = 'en_stock' | 'agotada';
+export type EstadoRes = "en_stock" | "agotada";
+
+export type TipoRes = "vacuno" | "cerdo" | "toro" | "otro";
+
+export const TIPO_RES_LABEL: Record<TipoRes, string> = {
+  vacuno: "Carne vacuna",
+  cerdo: "Cerdo",
+  toro: "Toro",
+  otro: "Otro",
+};
 
 export interface Res {
   id: number;
   loteId: number;
   cor: string;
   garron: string | null;
+  tipo: TipoRes;
   clasificacion: string | null;
   kilosIngreso: number;
   kilosDisponibles: number;
   estado: EstadoRes;
 }
 
-export type CondicionIva = 'responsable_inscripto' | 'monotributo' | 'exento' | 'consumidor_final';
+export type CondicionIva =
+  "responsable_inscripto" | "monotributo" | "exento" | "consumidor_final";
 
 export const CONDICION_IVA_LABEL: Record<CondicionIva, string> = {
-  responsable_inscripto: 'Responsable Inscripto',
-  monotributo: 'Monotributo',
-  exento: 'Exento',
-  consumidor_final: 'Consumidor Final',
+  responsable_inscripto: "Responsable Inscripto",
+  monotributo: "Monotributo",
+  exento: "Exento",
+  consumidor_final: "Consumidor Final",
 };
 
 export interface Cliente {
@@ -58,12 +69,12 @@ export interface VentaResumen {
   totalImporte: number;
 }
 
-export type MetodoPago = 'efectivo' | 'transferencia' | 'cheque';
+export type MetodoPago = "efectivo" | "transferencia" | "cheque";
 
 export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
-  efectivo: 'Efectivo',
-  transferencia: 'Transferencia',
-  cheque: 'Cheque',
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  cheque: "Cheque",
 };
 
 export interface Pago {
@@ -111,7 +122,7 @@ export interface Deudor {
 }
 
 export interface ActividadItem {
-  tipo: 'venta' | 'pago';
+  tipo: "venta" | "pago";
   clienteNombre: string;
   monto: number;
   fecha: string;
@@ -201,6 +212,60 @@ export interface VentaPorDiaSemana {
   total: number;
 }
 
+export interface HistorialDiaResumen {
+  fecha: string;
+  cantidadVentas: number;
+  totalVentas: number;
+  cantidadPedidos: number;
+  totalCobros: number;
+}
+
+export interface HistorialVenta {
+  id: number;
+  numeroRemito: number;
+  clienteNombre: string;
+  totalImporte: number;
+  fecha: string;
+}
+
+export interface HistorialPedido {
+  id: number;
+  clienteNombre: string;
+  repartidorNombre: string;
+  estado: EstadoPedido;
+  total: number;
+  piezas: number;
+}
+
+export interface HistorialPago {
+  metodo: string;
+  cantidad: number;
+  total: number;
+}
+
+export interface HistorialProductoVendido {
+  descripcion: string;
+  kilos: number;
+  importe: number;
+  piezas: number;
+}
+
+export interface HistorialDiaDetalle {
+  fecha: string;
+  resumen: {
+    cantidadVentas: number;
+    totalVentas: number;
+    cantidadPedidos: number;
+    cantidadPagos: number;
+    totalCobros: number;
+    kilosVendidos: number;
+  };
+  ventas: HistorialVenta[];
+  pedidos: HistorialPedido[];
+  pagos: HistorialPago[];
+  productosVendidos: HistorialProductoVendido[];
+}
+
 export interface EstadisticasDashboard {
   ventasPorDia: PuntoVentaDiaria[];
   ventasPorMes: PuntoVentaMensual[];
@@ -222,8 +287,9 @@ export interface EstadisticasDashboard {
   ventasPorDiaSemana: VentaPorDiaSemana[];
 }
 
-export type CategoriaProducto = 'vacuno' | 'cerdo' | 'toro' | 'embutido' | 'otro';
-export type UnidadProducto = 'kg' | 'unidad';
+export type CategoriaProducto =
+  "vacuno" | "cerdo" | "toro" | "embutido" | "otro";
+export type UnidadProducto = "kg" | "unidad";
 
 export interface Producto {
   id: number;
@@ -242,13 +308,13 @@ export interface ItemStock {
   cantidadDisponible: number;
 }
 
-export type EstadoPedido = 'pendiente' | 'armado' | 'cargado' | 'entregado';
+export type EstadoPedido = "pendiente" | "armado" | "cargado" | "entregado";
 
 export const ESTADO_PEDIDO_LABEL: Record<EstadoPedido, string> = {
-  pendiente: 'Pendiente de armar',
-  armado: 'Armado',
-  cargado: 'Cargado en camioneta',
-  entregado: 'Entregado',
+  pendiente: "Pendiente de armar",
+  armado: "Armado",
+  cargado: "Cargado en camioneta",
+  entregado: "Entregado",
 };
 
 export interface PedidoItem {

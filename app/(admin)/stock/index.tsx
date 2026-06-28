@@ -9,17 +9,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { showAlert, showConfirm } from "@/utils/alert";
+import { ResCard } from "@/components/stock/ResCard";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
-import {
-  actualizarLoteApi,
-  eliminarResApi,
-  listarLotesApi,
-  listarResesApi,
-} from "@/services/stockApi";
+import { listarLotesApi, listarResesApi } from "@/services/stockApi";
+import { formatoFechaCorta } from "@/utils/fecha";
 import type { LoteIngreso, Res } from "@/types";
 
 const DEBOUNCE_MS = 350;
@@ -30,12 +26,6 @@ export default function StockIndex() {
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState("");
   const [busquedaActiva, setBusquedaActiva] = useState("");
-
-  const [loteEditando, setLoteEditando] = useState<number | null>(null);
-  const [fechaEditada, setFechaEditada] = useState("");
-  const [guardandoFecha, setGuardandoFecha] = useState(false);
-
-  const [eliminandoId, setEliminandoId] = useState<number | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setBusquedaActiva(busqueda.trim()), DEBOUNCE_MS);
@@ -86,49 +76,7 @@ export default function StockIndex() {
   }, [reses, lotes]);
 
   const kilosTotales = reses.reduce((acc, r) => acc + r.kilosDisponibles, 0);
-
-  const empezarEdicionFecha = (lote: LoteIngreso) => {
-    setLoteEditando(lote.id);
-    setFechaEditada(lote.fechaFaena ?? "");
-  };
-
-  const guardarFecha = async (loteId: number) => {
-    setGuardandoFecha(true);
-    try {
-      await actualizarLoteApi(loteId, {
-        fechaFaena: fechaEditada.trim() || undefined,
-      });
-      setLoteEditando(null);
-      cargar();
-    } catch (e) {
-      showAlert(
-        "Tropa",
-        e instanceof Error ? e.message : "No se pudo actualizar la fecha.",
-      );
-    } finally {
-      setGuardandoFecha(false);
-    }
-  };
-
-  const eliminarRes = async (res: Res) => {
-    const confirmado = await showConfirm(
-      "Eliminar del stock",
-      `Cor ${res.cor}${res.garron ? ` · Garrón ${res.garron}` : ""}. Esta acción no se puede deshacer.`,
-    );
-    if (!confirmado) return;
-    setEliminandoId(res.id);
-    try {
-      await eliminarResApi(res.id);
-      cargar();
-    } catch (e) {
-      showAlert(
-        "Eliminar",
-        e instanceof Error ? e.message : "No se pudo eliminar.",
-      );
-    } finally {
-      setEliminandoId(null);
-    }
-  };
+  const hayBusqueda = busquedaActiva.length > 0;
 
   return (
     <Screen title="Stock" subtitle="Stock disponible" scrollable>
@@ -161,101 +109,54 @@ export default function StockIndex() {
         <ActivityIndicator color={COLORS.negro} style={{ marginTop: 20 }} />
       ) : grupos.length === 0 ? (
         <Text style={styles.vacio}>
-          {busquedaActiva
+          {hayBusqueda
             ? `Sin resultados para "${busquedaActiva}".`
             : "No hay stock disponible."}
         </Text>
+      ) : hayBusqueda ? (
+        // Con búsqueda activa mostramos las reses encontradas directamente, agrupadas por tropa.
+        grupos.map(({ lote, loteId, items }) => (
+          <View key={loteId} style={styles.grupo}>
+            <Text style={styles.tropaNumeroChico}>
+              Tropa {lote?.numeroTropa ?? loteId}
+            </Text>
+            {items.map((res) => (
+              <ResCard key={res.id} res={res} onEliminado={cargar} />
+            ))}
+          </View>
+        ))
       ) : (
+        // Sin búsqueda: solo el resumen de cada tropa; tocarla abre su stock.
         grupos.map(({ lote, loteId, items }) => {
           const kilosTropa = items.reduce(
             (acc, r) => acc + r.kilosDisponibles,
             0,
           );
           return (
-            <View key={loteId} style={styles.grupo}>
-              <View style={styles.grupoHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.tropaNumero}>
-                    Tropa {lote?.numeroTropa ?? loteId}
-                  </Text>
-                  {loteEditando === lote?.id ? (
-                    <View style={styles.fechaEdicion}>
-                      <Input
-                        value={fechaEditada}
-                        onChangeText={setFechaEditada}
-                        placeholder="AAAA-MM-DD"
-                        autoCapitalize="none"
-                      />
-                      <View style={styles.fechaEdicionBotones}>
-                        <Button
-                          label="GUARDAR"
-                          loading={guardandoFecha}
-                          onPress={() => void guardarFecha(lote.id)}
-                        />
-                        <Button
-                          label="CANCELAR"
-                          variant="secondary"
-                          onPress={() => setLoteEditando(null)}
-                        />
-                      </View>
-                    </View>
-                  ) : (
-                    <Pressable
-                      style={styles.fechaFila}
-                      onPress={() => lote && empezarEdicionFecha(lote)}
-                      hitSlop={6}
-                    >
-                      <Text style={styles.tropaFecha}>
-                        {lote?.fechaFaena ?? "Sin fecha"}
-                      </Text>
-                      <Ionicons
-                        name="pencil"
-                        size={13}
-                        color={COLORS.grisSecundario}
-                      />
-                    </Pressable>
-                  )}
-                </View>
+            <Pressable
+              key={loteId}
+              style={styles.tropaCard}
+              onPress={() => router.push(`/(admin)/stock/tropa/${loteId}`)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.tropaNumero}>
+                  Tropa {lote?.numeroTropa ?? loteId}
+                </Text>
+                <Text style={styles.tropaFecha}>
+                  {formatoFechaCorta(lote?.fechaFaena)}
+                </Text>
+              </View>
+              <View style={{ alignItems: "flex-end" }}>
                 <Text style={styles.tropaResumen}>
                   {items.length} ítem(s) · {kilosTropa.toFixed(0)} kg
                 </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={COLORS.dorado}
+                />
               </View>
-
-              {items.map((res) => (
-                <View key={res.id} style={styles.card}>
-                  <Pressable
-                    style={styles.cardTexto}
-                    onPress={() => router.push(`/(admin)/stock/${res.id}`)}
-                  >
-                    <Text style={styles.cor}>Cor {res.cor}</Text>
-                    <Text style={styles.detalle}>
-                      {res.garron ? `Garrón ${res.garron} · ` : ""}
-                      {res.clasificacion ?? "–"}
-                    </Text>
-                    <Text style={styles.kilos}>
-                      {res.kilosDisponibles} kg disponibles de{" "}
-                      {res.kilosIngreso} kg
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.eliminarBtn}
-                    onPress={() => void eliminarRes(res)}
-                    disabled={eliminandoId === res.id}
-                    hitSlop={8}
-                  >
-                    {eliminandoId === res.id ? (
-                      <ActivityIndicator size="small" color={COLORS.error} />
-                    ) : (
-                      <Ionicons
-                        name="trash-outline"
-                        size={20}
-                        color={COLORS.error}
-                      />
-                    )}
-                  </Pressable>
-                </View>
-              ))}
-            </View>
+            </Pressable>
           );
         })
       )}
@@ -296,13 +197,19 @@ const styles = StyleSheet.create({
     color: COLORS.doradoOscuro,
   },
   grupo: { marginBottom: 16, gap: 8 },
-  grupoHeader: {
+  tropaNumeroChico: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 13,
+    color: COLORS.doradoOscuro,
+  },
+  tropaCard: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: COLORS.negro,
     borderRadius: 14,
-    padding: 12,
+    padding: 14,
+    marginBottom: 10,
     gap: 8,
   },
   tropaNumero: {
@@ -310,44 +217,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.dorado,
   },
-  fechaFila: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 2,
-  },
   tropaFecha: {
     fontFamily: "Poppins_400Regular",
     fontSize: 12,
     color: "rgba(255,255,255,0.75)",
+    marginTop: 2,
   },
-  fechaEdicion: { marginTop: 6, gap: 6 },
-  fechaEdicionBotones: { flexDirection: "row", gap: 8 },
   tropaResumen: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 12,
     color: COLORS.doradoClaro,
-    textAlign: "right",
   },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  cardTexto: { flex: 1, gap: 4 },
-  cor: { fontFamily: "Poppins_700Bold", fontSize: 15, color: COLORS.grisTexto },
-  detalle: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 12,
-    color: COLORS.grisSecundario,
-  },
-  kilos: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 13,
-    color: COLORS.doradoOscuro,
-  },
-  eliminarBtn: { padding: 6 },
 });

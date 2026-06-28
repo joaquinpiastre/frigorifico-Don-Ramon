@@ -1,4 +1,4 @@
-import type { LoteIngreso, Res } from "@/types";
+import type { LoteIngreso, Res, TipoRes } from "@/types";
 import { apiRequest } from "./apiClient";
 
 export async function crearLoteApi(input: {
@@ -40,6 +40,7 @@ export async function crearResApi(input: {
   loteId?: number;
   cor: string;
   garron?: string;
+  tipo?: TipoRes;
   clasificacion?: string;
   kilos: number;
 }): Promise<Res> {
@@ -54,6 +55,7 @@ export async function actualizarResApi(
   id: number,
   input: {
     garron?: string;
+    tipo?: TipoRes;
     clasificacion?: string;
     kilosDisponibles?: number;
     estado?: "en_stock" | "agotada";

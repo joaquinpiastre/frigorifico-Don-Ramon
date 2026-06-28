@@ -17,9 +17,15 @@ import {
   eliminarResApi,
   listarResesApi,
 } from "@/services/stockApi";
-import type { EstadoRes, Res } from "@/types";
+import {
+  TIPO_RES_LABEL,
+  type EstadoRes,
+  type Res,
+  type TipoRes,
+} from "@/types";
 
 const ESTADOS: EstadoRes[] = ["en_stock", "agotada"];
+const TIPOS: TipoRes[] = ["vacuno", "cerdo", "toro", "otro"];
 
 export default function EditarRes() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -29,6 +35,7 @@ export default function EditarRes() {
   const [cargando, setCargando] = useState(true);
 
   const [garron, setGarron] = useState("");
+  const [tipo, setTipo] = useState<TipoRes>("vacuno");
   const [clasificacion, setClasificacion] = useState("");
   const [kilosDisponibles, setKilosDisponibles] = useState("");
   const [estado, setEstado] = useState<EstadoRes>("en_stock");
@@ -42,6 +49,7 @@ export default function EditarRes() {
         setRes(encontrada);
         if (encontrada) {
           setGarron(encontrada.garron ?? "");
+          setTipo(encontrada.tipo);
           setClasificacion(encontrada.clasificacion ?? "");
           setKilosDisponibles(String(encontrada.kilosDisponibles));
           setEstado(encontrada.estado);
@@ -61,6 +69,7 @@ export default function EditarRes() {
     try {
       await actualizarResApi(resId, {
         garron: garron.trim() || undefined,
+        tipo,
         clasificacion: clasificacion.trim() || undefined,
         kilosDisponibles: kilosNum,
         estado,
@@ -116,12 +125,28 @@ export default function EditarRes() {
 
   return (
     <Screen
-      title={`Cor ${res.cor}`}
-      subtitle={`Ingresada con ${res.kilosIngreso} kg`}
+      title={TIPO_RES_LABEL[res.tipo]}
+      subtitle={`Cor ${res.cor} · Ingresada con ${res.kilosIngreso} kg`}
       scrollable
     >
       <View style={styles.card}>
         <Input label="Garrón" value={garron} onChangeText={setGarron} />
+        <Text style={styles.label}>Tipo de producto</Text>
+        <View style={styles.fila}>
+          {TIPOS.map((t) => (
+            <Pressable
+              key={t}
+              style={[styles.chip, tipo === t && styles.chipActivo]}
+              onPress={() => setTipo(t)}
+            >
+              <Text
+                style={[styles.chipTexto, tipo === t && styles.chipTextoActivo]}
+              >
+                {TIPO_RES_LABEL[t]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
         <Input
           label="Clasificación"
           value={clasificacion}
@@ -183,7 +208,7 @@ const styles = StyleSheet.create({
     color: COLORS.grisTexto,
     marginBottom: 6,
   },
-  fila: { flexDirection: "row", gap: 8, marginBottom: 8 },
+  fila: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,

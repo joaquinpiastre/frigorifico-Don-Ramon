@@ -76,12 +76,16 @@ CREATE TABLE IF NOT EXISTS reses (
   lote_id BIGINT NOT NULL REFERENCES lotes_ingreso(id),
   cor TEXT NOT NULL UNIQUE,
   garron TEXT,
+  tipo TEXT NOT NULL DEFAULT 'vacuno',
   clasificacion TEXT,
   kilos_ingreso NUMERIC NOT NULL,
   kilos_disponibles NUMERIC NOT NULL,
   estado TEXT NOT NULL DEFAULT 'en_stock',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Por si la tabla ya existía de una corrida anterior del esquema (sin tipo).
+ALTER TABLE reses ADD COLUMN IF NOT EXISTS tipo TEXT NOT NULL DEFAULT 'vacuno';
 
 -- Por si la tabla ya existía con los nombres de campo anteriores.
 DO $$ BEGIN
