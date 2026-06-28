@@ -19,7 +19,14 @@ import {
   listarLotesApi,
 } from "@/services/stockApi";
 import { registrarIngresoStockApi } from "@/services/stockItemsApi";
-import type { LoteIngreso, Producto } from "@/types";
+import {
+  TIPO_RES_LABEL,
+  type LoteIngreso,
+  type Producto,
+  type TipoRes,
+} from "@/types";
+
+const TIPOS: TipoRes[] = ["vacuno", "toro", "cerdo", "otro"];
 
 export default function RecepcionRapida() {
   // Tropa: identifica el lote de ingreso bajo el cual se recibe todo lo demás.
@@ -36,6 +43,7 @@ export default function RecepcionRapida() {
   const [buscando, setBuscando] = useState(false);
   const [altaPendiente, setAltaPendiente] = useState<string | null>(null);
   const [garron, setGarron] = useState("");
+  const [tipo, setTipo] = useState<TipoRes>("vacuno");
   const [kilos, setKilos] = useState("");
   const [guardandoRes, setGuardandoRes] = useState(false);
   const [mensajeCodigo, setMensajeCodigo] = useState<string | null>(null);
@@ -102,6 +110,7 @@ export default function RecepcionRapida() {
     setCodigo("");
     setAltaPendiente(null);
     setGarron("");
+    setTipo("vacuno");
     setKilos("");
     codigoRef.current?.focus();
   };
@@ -136,6 +145,7 @@ export default function RecepcionRapida() {
         loteId: loteSeleccionado?.id,
         cor: altaPendiente,
         garron: garron.trim() || undefined,
+        tipo,
         kilos: kilosNum,
       });
       setMensajeCodigo(
@@ -264,6 +274,25 @@ export default function RecepcionRapida() {
                 <Text style={styles.altaTitulo}>
                   Res nueva · {altaPendiente}
                 </Text>
+                <Text style={styles.tipoLabel}>Tipo de producto</Text>
+                <View style={styles.filaChips}>
+                  {TIPOS.map((t) => (
+                    <Pressable
+                      key={t}
+                      style={[styles.chip, tipo === t && styles.chipActivo]}
+                      onPress={() => setTipo(t)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipTexto,
+                          tipo === t && styles.chipTextoActivo,
+                        ]}
+                      >
+                        {TIPO_RES_LABEL[t]}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
                 <Input
                   ref={kilosRef}
                   label="Kilos"
@@ -411,6 +440,32 @@ const styles = StyleSheet.create({
     color: COLORS.doradoOscuro,
     marginBottom: 4,
   },
+  tipoLabel: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+  },
+  filaChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 4,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#dcd2c8",
+  },
+  chipActivo: { backgroundColor: COLORS.negro, borderColor: COLORS.negro },
+  chipTexto: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+  },
+  chipTextoActivo: { color: "#fff" },
   productoCard: {
     backgroundColor: COLORS.grisClaro,
     borderRadius: 12,
