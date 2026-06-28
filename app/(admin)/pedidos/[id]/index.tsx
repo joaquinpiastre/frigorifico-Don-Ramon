@@ -1,7 +1,8 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View } from 'react-native';
+import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { obtenerPedidoApi } from '@/services/pedidosApi';
@@ -30,6 +31,7 @@ export default function PedidoDetalleAdmin() {
   return (
     <Screen title={pedido.clienteNombre} subtitle={ESTADO_PEDIDO_LABEL[pedido.estado]} scrollable>
       <View style={styles.card}>
+        <Text style={styles.sub}>Remito N° {pedido.numeroRemito}</Text>
         <Text style={styles.sub}>Repartidor: {pedido.repartidorNombre ?? pedido.repartidor}</Text>
         {pedido.items.map((item) => (
           <View key={item.id} style={styles.lineaCard}>
@@ -47,12 +49,16 @@ export default function PedidoDetalleAdmin() {
         ))}
         <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
       </View>
+      <Button
+        label="GENERAR REMITO"
+        onPress={() => router.push(`/(admin)/pedidos/${pedido.id}/remito`)}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 6 },
+  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 6, marginBottom: 12 },
   lineaCard: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.grisClaro },
   linea: { fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: COLORS.grisTexto },
   sub: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },

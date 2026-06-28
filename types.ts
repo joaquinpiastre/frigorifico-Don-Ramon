@@ -195,6 +195,12 @@ export interface ClientesNuevosPorMes {
   cantidad: number;
 }
 
+export interface VentaPorDiaSemana {
+  diaSemana: number;
+  cantidad: number;
+  total: number;
+}
+
 export interface EstadisticasDashboard {
   ventasPorDia: PuntoVentaDiaria[];
   ventasPorMes: PuntoVentaMensual[];
@@ -209,8 +215,11 @@ export interface EstadisticasDashboard {
     kilosVendidosMes: number;
     clientesActivosMes: number;
     ventasTotalHistorico: number;
+    ventasMesAnterior: number;
+    variacionMesPct: number | null;
   };
   clientesNuevosPorMes: ClientesNuevosPorMes[];
+  ventasPorDiaSemana: VentaPorDiaSemana[];
 }
 
 export type CategoriaProducto = 'vacuno' | 'cerdo' | 'toro' | 'embutido' | 'otro';
@@ -267,6 +276,13 @@ export interface Pedido {
 
 export interface PedidoDetalle extends Pedido {
   items: PedidoItem[];
+  numeroRemito: number;
+  clienteNumero: string;
+  clienteTelefono: string | null;
+  clienteDireccion: string | null;
+  clienteRazonSocial: string | null;
+  clienteCuit: string | null;
+  clienteCondicionIva: CondicionIva | null;
 }
 
 export interface UnidadLive {

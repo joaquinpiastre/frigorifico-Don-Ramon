@@ -29,7 +29,9 @@ export async function listarPedidosApi(filtros?: { estado?: EstadoPedido; repart
 }
 
 export async function obtenerPedidoApi(id: number): Promise<PedidoDetalle> {
-  const data = await apiRequest<{ pedido: Pedido; items: PedidoDetalle['items'] }>(`/pedidos/${id}`);
+  const data = await apiRequest<{ pedido: Omit<PedidoDetalle, 'items'>; items: PedidoDetalle['items'] }>(
+    `/pedidos/${id}`
+  );
   return { ...data.pedido, items: data.items };
 }
 

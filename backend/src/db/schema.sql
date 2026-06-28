@@ -187,6 +187,7 @@ CREATE INDEX IF NOT EXISTS idx_items_stock_producto ON items_stock (producto_id)
 -- Cabecera de un pedido armado por el admin para un cliente, asignado a un repartidor.
 CREATE TABLE IF NOT EXISTS pedidos (
   id BIGSERIAL PRIMARY KEY,
+  numero_remito BIGSERIAL NOT NULL,
   cliente_id BIGINT NOT NULL REFERENCES clientes(id),
   repartidor TEXT NOT NULL REFERENCES usuarios(id),
   estado TEXT NOT NULL DEFAULT 'pendiente',
@@ -197,6 +198,20 @@ CREATE TABLE IF NOT EXISTS pedidos (
   entregado_en TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Por si la tabla ya existía de una corrida anterior del esquema (sin numero_remito).
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_name = 'pedidos' AND column_name = 'numero_remito'
+  ) THEN
+    CREATE SEQUENCE IF NOT EXISTS pedidos_numero_remito_seq;
+    ALTER TABLE pedidos ADD COLUMN numero_remito BIGINT;
+    UPDATE pedidos SET numero_remito = nextval('pedidos_numero_remito_seq') WHERE numero_remito IS NULL;
+    ALTER TABLE pedidos ALTER COLUMN numero_remito SET DEFAULT nextval('pedidos_numero_remito_seq');
+    ALTER TABLE pedidos ALTER COLUMN numero_remito SET NOT NULL;
+    ALTER SEQUENCE pedidos_numero_remito_seq OWNED BY pedidos.numero_remito;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos (estado);
 CREATE INDEX IF NOT EXISTS idx_pedidos_repartidor ON pedidos (repartidor);

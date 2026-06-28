@@ -92,7 +92,9 @@ pedidosRouter.get('/pedidos/:id', requireAuth, async (req, res) => {
   }
 
   const pedidoResult = await pool.query(
-    `select p.id, p.cliente_id as "clienteId", c.nombre as "clienteNombre",
+    `select p.id, p.numero_remito as "numeroRemito", p.cliente_id as "clienteId", c.nombre as "clienteNombre",
+            c.numero_cliente as "clienteNumero", c.telefono as "clienteTelefono", c.direccion as "clienteDireccion",
+            c.razon_social as "clienteRazonSocial", c.cuit as "clienteCuit", c.condicion_iva as "clienteCondicionIva",
             p.repartidor, u.nombre as "repartidorNombre", p.estado, p.fecha
      from pedidos p
      join clientes c on c.id = p.cliente_id
