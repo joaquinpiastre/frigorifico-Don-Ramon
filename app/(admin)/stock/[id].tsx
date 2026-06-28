@@ -1,15 +1,25 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { showAlert } from '@/utils/alert';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Screen } from '@/components/ui/Screen';
-import { COLORS } from '@/constants/colors';
-import { actualizarResApi, listarResesApi } from '@/services/stockApi';
-import type { EstadoRes, Res } from '@/types';
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { showAlert, showConfirm } from "@/utils/alert";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Screen } from "@/components/ui/Screen";
+import { COLORS } from "@/constants/colors";
+import {
+  actualizarResApi,
+  eliminarResApi,
+  listarResesApi,
+} from "@/services/stockApi";
+import type { EstadoRes, Res } from "@/types";
 
-const ESTADOS: EstadoRes[] = ['en_stock', 'agotada'];
+const ESTADOS: EstadoRes[] = ["en_stock", "agotada"];
 
 export default function EditarRes() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -18,11 +28,12 @@ export default function EditarRes() {
   const [res, setRes] = useState<Res | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  const [garron, setGarron] = useState('');
-  const [clasificacion, setClasificacion] = useState('');
-  const [kilosDisponibles, setKilosDisponibles] = useState('');
-  const [estado, setEstado] = useState<EstadoRes>('en_stock');
+  const [garron, setGarron] = useState("");
+  const [clasificacion, setClasificacion] = useState("");
+  const [kilosDisponibles, setKilosDisponibles] = useState("");
+  const [estado, setEstado] = useState<EstadoRes>("en_stock");
   const [guardando, setGuardando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
 
   useEffect(() => {
     listarResesApi()
@@ -30,8 +41,8 @@ export default function EditarRes() {
         const encontrada = data.find((r) => r.id === resId) ?? null;
         setRes(encontrada);
         if (encontrada) {
-          setGarron(encontrada.garron ?? '');
-          setClasificacion(encontrada.clasificacion ?? '');
+          setGarron(encontrada.garron ?? "");
+          setClasificacion(encontrada.clasificacion ?? "");
           setKilosDisponibles(String(encontrada.kilosDisponibles));
           setEstado(encontrada.estado);
         }
@@ -41,9 +52,9 @@ export default function EditarRes() {
   }, [resId]);
 
   const guardar = async () => {
-    const kilosNum = Number(kilosDisponibles.replace(',', '.'));
+    const kilosNum = Number(kilosDisponibles.replace(",", "."));
     if (!kilosNum || kilosNum < 0) {
-      showAlert('Res', 'Los kilos disponibles deben ser un número válido.');
+      showAlert("Res", "Los kilos disponibles deben ser un número válido.");
       return;
     }
     setGuardando(true);
@@ -54,12 +65,36 @@ export default function EditarRes() {
         kilosDisponibles: kilosNum,
         estado,
       });
-      showAlert('Res actualizada', 'Los cambios se guardaron correctamente.');
+      showAlert("Res actualizada", "Los cambios se guardaron correctamente.");
       router.back();
     } catch (e) {
-      showAlert('Res', e instanceof Error ? e.message : 'No se pudo actualizar la res.');
+      showAlert(
+        "Res",
+        e instanceof Error ? e.message : "No se pudo actualizar la res.",
+      );
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const eliminar = async () => {
+    if (!res) return;
+    const confirmado = await showConfirm(
+      "Eliminar del stock",
+      `Cor ${res.cor}${res.garron ? ` · Garrón ${res.garron}` : ""}. Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    setEliminando(true);
+    try {
+      await eliminarResApi(res.id);
+      router.back();
+    } catch (e) {
+      showAlert(
+        "Eliminar",
+        e instanceof Error ? e.message : "No se pudo eliminar.",
+      );
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -80,7 +115,11 @@ export default function EditarRes() {
   }
 
   return (
-    <Screen title={`Cor ${res.cor}`} subtitle={`Ingresada con ${res.kilosIngreso} kg`} scrollable>
+    <Screen
+      title={`Cor ${res.cor}`}
+      subtitle={`Ingresada con ${res.kilosIngreso} kg`}
+      scrollable
+    >
       <View style={styles.card}>
         <Input label="Garrón" value={garron} onChangeText={setGarron} />
         <Input
@@ -98,33 +137,66 @@ export default function EditarRes() {
         <Text style={styles.label}>Estado</Text>
         <View style={styles.fila}>
           {ESTADOS.map((e) => (
-            <Pressable key={e} style={[styles.chip, estado === e && styles.chipActivo]} onPress={() => setEstado(e)}>
-              <Text style={[styles.chipTexto, estado === e && styles.chipTextoActivo]}>
-                {e === 'en_stock' ? 'En stock' : 'Agotada'}
+            <Pressable
+              key={e}
+              style={[styles.chip, estado === e && styles.chipActivo]}
+              onPress={() => setEstado(e)}
+            >
+              <Text
+                style={[
+                  styles.chipTexto,
+                  estado === e && styles.chipTextoActivo,
+                ]}
+              >
+                {e === "en_stock" ? "En stock" : "Agotada"}
               </Text>
             </Pressable>
           ))}
         </View>
-        <Button label="GUARDAR CAMBIOS" loading={guardando} onPress={() => void guardar()} />
+        <Button
+          label="GUARDAR CAMBIOS"
+          loading={guardando}
+          onPress={() => void guardar()}
+        />
       </View>
+      <Button
+        label="ELIMINAR DEL STOCK"
+        variant="danger"
+        loading={eliminando}
+        onPress={() => void eliminar()}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  vacio: { fontFamily: 'Poppins_400Regular', color: COLORS.grisSecundario, marginTop: 20, textAlign: 'center' },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 4 },
-  label: { fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: COLORS.grisTexto, marginBottom: 6 },
-  fila: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  vacio: {
+    fontFamily: "Poppins_400Regular",
+    color: COLORS.grisSecundario,
+    marginTop: 20,
+    textAlign: "center",
+  },
+  card: { backgroundColor: "#fff", borderRadius: 14, padding: 14, gap: 4 },
+  label: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+    marginBottom: 6,
+  },
+  fila: { flexDirection: "row", gap: 8, marginBottom: 8 },
   chip: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: '#dcd2c8',
+    borderColor: "#dcd2c8",
   },
   chipActivo: { backgroundColor: COLORS.negro, borderColor: COLORS.negro },
-  chipTexto: { fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: COLORS.grisTexto },
-  chipTextoActivo: { color: '#fff' },
+  chipTexto: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+  },
+  chipTextoActivo: { color: "#fff" },
 });
