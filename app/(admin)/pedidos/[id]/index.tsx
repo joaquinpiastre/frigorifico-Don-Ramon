@@ -1,12 +1,12 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, View } from 'react-native';
-import { Button } from '@/components/ui/Button';
-import { Screen } from '@/components/ui/Screen';
-import { COLORS } from '@/constants/colors';
-import { obtenerPedidoApi } from '@/services/pedidosApi';
-import { ESTADO_PEDIDO_LABEL, type PedidoDetalle } from '@/types';
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { StyleSheet, Text, View } from "react-native";
+import { Button } from "@/components/ui/Button";
+import { Screen } from "@/components/ui/Screen";
+import { COLORS } from "@/constants/colors";
+import { obtenerPedidoApi } from "@/services/pedidosApi";
+import { ESTADO_PEDIDO_LABEL, type PedidoDetalle } from "@/types";
 
 export default function PedidoDetalleAdmin() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -14,8 +14,10 @@ export default function PedidoDetalleAdmin() {
 
   useFocusEffect(
     useCallback(() => {
-      obtenerPedidoApi(Number(id)).then(setPedido).catch(() => setPedido(null));
-    }, [id])
+      obtenerPedidoApi(Number(id))
+        .then(setPedido)
+        .catch(() => setPedido(null));
+    }, [id]),
   );
 
   if (!pedido) {
@@ -29,22 +31,30 @@ export default function PedidoDetalleAdmin() {
   const total = pedido.items.reduce((acc, i) => acc + i.cantidad * i.precio, 0);
 
   return (
-    <Screen title={pedido.clienteNombre} subtitle={ESTADO_PEDIDO_LABEL[pedido.estado]} scrollable>
+    <Screen
+      title={pedido.clienteNombre}
+      subtitle={ESTADO_PEDIDO_LABEL[pedido.estado]}
+      scrollable
+    >
       <View style={styles.card}>
         <Text style={styles.sub}>Remito N° {pedido.numeroRemito}</Text>
-        <Text style={styles.sub}>Repartidor: {pedido.repartidorNombre ?? pedido.repartidor}</Text>
+        <Text style={styles.sub}>
+          Repartidor: {pedido.repartidorNombre ?? pedido.repartidor}
+        </Text>
         {pedido.items.map((item) => (
           <View key={item.id} style={styles.lineaCard}>
             <Text style={styles.linea}>
-              {item.productoNombre} · {item.cantidad} × ${item.precio} = ${(item.cantidad * item.precio).toFixed(2)}
+              {item.productoNombre} · {item.cantidad} × ${item.precio} = $
+              {(item.cantidad * item.precio).toFixed(2)}
             </Text>
             {item.garron || item.tropa || item.cor ? (
               <Text style={styles.sub}>
-                {item.cor ? `Cor ${item.cor} · ` : ''}
-                {item.garron ? `Garrón ${item.garron} · ` : ''}
-                {item.tropa ? `Tropa ${item.tropa}` : ''}
+                {item.cor ? `Cor ${item.cor} · ` : ""}
+                {item.garron ? `Garrón ${item.garron} · ` : ""}
+                {item.tropa ? `Tropa ${item.tropa}` : ""}
               </Text>
             ) : null}
+            {item.nota ? <Text style={styles.sub}>📝 {item.nota}</Text> : null}
           </View>
         ))}
         <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
@@ -58,9 +68,33 @@ export default function PedidoDetalleAdmin() {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 6, marginBottom: 12 },
-  lineaCard: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: COLORS.grisClaro },
-  linea: { fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: COLORS.grisTexto },
-  sub: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },
-  total: { fontFamily: 'Poppins_700Bold', fontSize: 16, color: COLORS.doradoOscuro, textAlign: 'right', marginTop: 6 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    gap: 6,
+    marginBottom: 12,
+  },
+  lineaCard: {
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.grisClaro,
+  },
+  linea: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+  },
+  sub: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: COLORS.grisSecundario,
+  },
+  total: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 16,
+    color: COLORS.doradoOscuro,
+    textAlign: "right",
+    marginTop: 6,
+  },
 });

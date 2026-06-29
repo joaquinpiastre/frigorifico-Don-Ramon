@@ -327,6 +327,7 @@ export interface PedidoItem {
   precio: number;
   garron: string | null;
   tropa: string | null;
+  nota: string | null;
   entregado: boolean;
 }
 

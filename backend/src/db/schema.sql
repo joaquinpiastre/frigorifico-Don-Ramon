@@ -247,9 +247,13 @@ CREATE TABLE IF NOT EXISTS pedido_items (
   precio NUMERIC NOT NULL,
   garron TEXT,
   tropa TEXT,
+  nota TEXT,
   entregado BOOLEAN NOT NULL DEFAULT false,
   entregado_en TIMESTAMPTZ
 );
+
+-- Por si la tabla ya existía de una corrida anterior del esquema (sin nota).
+ALTER TABLE pedido_items ADD COLUMN IF NOT EXISTS nota TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido ON pedido_items (pedido_id);
 CREATE INDEX IF NOT EXISTS idx_pedido_items_producto ON pedido_items (producto_id);

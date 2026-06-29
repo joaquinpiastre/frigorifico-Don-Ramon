@@ -27,6 +27,7 @@ interface Linea {
   precio: number;
   garron?: string;
   tropa?: string;
+  nota?: string;
   resId?: number;
   cor?: string;
   sinStock?: boolean;
@@ -71,6 +72,7 @@ export default function NuevoPedido() {
   const [precio, setPrecio] = useState("");
   const [garron, setGarron] = useState("");
   const [tropa, setTropa] = useState("");
+  const [nota, setNota] = useState("");
 
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [guardando, setGuardando] = useState(false);
@@ -131,6 +133,7 @@ export default function NuevoPedido() {
     setPrecio("");
     setGarron("");
     setTropa("");
+    setNota("");
   };
 
   const cancelarSeleccionProducto = () => {
@@ -141,6 +144,7 @@ export default function NuevoPedido() {
     setPrecio("");
     setGarron("");
     setTropa("");
+    setNota("");
   };
 
   const elegirRes = (res: Res) => {
@@ -159,12 +163,23 @@ export default function NuevoPedido() {
     setCantidad("");
   };
 
+  const cantidadExcedeStock =
+    resSeleccionada !== null &&
+    Number(cantidad.replace(",", ".")) > resSeleccionada.kilosDisponibles;
+
   const agregarLinea = () => {
     if (!productoSeleccionado) return;
     const cantidadNum = Number(cantidad.replace(",", "."));
     const precioNum = Number(precio.replace(",", "."));
     if (!cantidadNum || cantidadNum <= 0 || !precioNum || precioNum < 0) {
       showAlert("Pedido", "Completá cantidad y precio.");
+      return;
+    }
+    if (resSeleccionada && cantidadNum > resSeleccionada.kilosDisponibles) {
+      showAlert(
+        "Pedido",
+        `Esa Cor solo tiene ${resSeleccionada.kilosDisponibles} kg disponibles.`,
+      );
       return;
     }
 
@@ -177,6 +192,7 @@ export default function NuevoPedido() {
         precio: precioNum,
         garron: garron.trim() || undefined,
         tropa: tropa.trim() || undefined,
+        nota: nota.trim() || undefined,
         resId: resSeleccionada?.id,
         cor: resSeleccionada?.cor ?? (cor.trim() || undefined),
         sinStock: productoSeleccionado.tieneCodigoBarra && !resSeleccionada,
@@ -210,6 +226,7 @@ export default function NuevoPedido() {
           precio: l.precio,
           garron: l.garron,
           tropa: l.tropa,
+          nota: l.nota,
           resId: l.resId,
         })),
       });
@@ -360,12 +377,19 @@ export default function NuevoPedido() {
             ) : null}
 
             <Input
-              label={`Cantidad (${productoSeleccionado.unidad})`}
+              label={`Cantidad a vender (${productoSeleccionado.unidad})`}
               value={cantidad}
               onChangeText={setCantidad}
               keyboardType="decimal-pad"
-              editable={!resSeleccionada}
+              placeholder={resSeleccionada ? undefined : "Ej: 50"}
             />
+            {resSeleccionada ? (
+              <Text style={cantidadExcedeStock ? styles.aviso : styles.sub}>
+                {cantidadExcedeStock
+                  ? `⚠️ Esa Cor solo tiene ${resSeleccionada.kilosDisponibles} kg disponibles.`
+                  : `Disponible: ${resSeleccionada.kilosDisponibles} kg. Si vendés menos, el resto queda en stock (ej: media res).`}
+              </Text>
+            ) : null}
             <Input
               label="Precio"
               value={precio}
@@ -387,6 +411,12 @@ export default function NuevoPedido() {
                 />
               </>
             ) : null}
+            <Input
+              label="Nota (opcional)"
+              value={nota}
+              onChangeText={setNota}
+              placeholder="Ej: media res, sin hueso…"
+            />
 
             {productoSeleccionado.tieneCodigoBarra && !resSeleccionada ? (
               <Text style={styles.aviso}>
@@ -452,6 +482,7 @@ export default function NuevoPedido() {
                   {l.tropa ? `Tropa ${l.tropa}` : ""}
                 </Text>
               ) : null}
+              {l.nota ? <Text style={styles.sub}>📝 {l.nota}</Text> : null}
               {l.sinStock ? (
                 <Text style={styles.aviso}>⚠️ Sin stock vinculado</Text>
               ) : null}
