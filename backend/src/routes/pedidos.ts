@@ -173,6 +173,24 @@ async function descontarStockItem(
     return;
   }
 
+  const { rows: productoRows } = await client.query(
+    'select tiene_codigo_barra as "tieneCodigoBarra" from productos where id = $1',
+    [item.productoId],
+  );
+  if (productoRows.length === 0) {
+    throw Object.assign(
+      new Error(`El producto ${item.productoId} no existe.`),
+      {
+        status: 400,
+      },
+    );
+  }
+  if (productoRows[0].tieneCodigoBarra) {
+    // Carne agregada al pedido sin vincularla a una res concreta del stock
+    // (se avisó al admin al crear el pedido): no hay nada que descontar.
+    return;
+  }
+
   let restante = item.cantidad;
   const { rows: lotesStock } = await client.query(
     `select id, cantidad_disponible as "cantidadDisponible"

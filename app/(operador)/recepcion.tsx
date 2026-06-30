@@ -181,6 +181,7 @@ export default function RecepcionRapida() {
     try {
       await registrarIngresoStockApi({
         productoId: productoSeleccionado.id,
+        loteId: loteSeleccionado?.id,
         cantidad: cantidadNum,
       });
       setMensajeStock(

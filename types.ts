@@ -83,6 +83,8 @@ export interface Pago {
   monto: number;
   metodo: MetodoPago | null;
   diasCheque: number | null;
+  numeroCheque: string | null;
+  banco: string | null;
   fecha: string;
 }
 
@@ -304,6 +306,8 @@ export interface ItemStock {
   id: number;
   productoId: number;
   productoNombre: string;
+  unidad: UnidadProducto;
+  loteId: number | null;
   cantidad: number;
   cantidadDisponible: number;
 }

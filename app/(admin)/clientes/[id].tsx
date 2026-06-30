@@ -1,14 +1,20 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { showAlert } from '@/utils/alert';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { MetodoPagoSelector } from '@/components/ui/MetodoPagoSelector';
-import { Screen } from '@/components/ui/Screen';
-import { COLORS } from '@/constants/colors';
-import { obtenerClienteApi, registrarPagoApi } from '@/services/clientesApi';
+import { router, useLocalSearchParams } from "expo-router";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { showAlert } from "@/utils/alert";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { MetodoPagoSelector } from "@/components/ui/MetodoPagoSelector";
+import { Screen } from "@/components/ui/Screen";
+import { COLORS } from "@/constants/colors";
+import { obtenerClienteApi, registrarPagoApi } from "@/services/clientesApi";
 import {
   CONDICION_IVA_LABEL,
   METODO_PAGO_LABEL,
@@ -16,7 +22,7 @@ import {
   type MetodoPago,
   type Pago,
   type VentaResumen,
-} from '@/types';
+} from "@/types";
 
 export default function ClienteDetalle() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -28,9 +34,11 @@ export default function ClienteDetalle() {
   const [saldo, setSaldo] = useState(0);
   const [cargando, setCargando] = useState(true);
 
-  const [monto, setMonto] = useState('');
+  const [monto, setMonto] = useState("");
   const [metodoPago, setMetodoPago] = useState<MetodoPago | null>(null);
-  const [diasCheque, setDiasCheque] = useState('');
+  const [diasCheque, setDiasCheque] = useState("");
+  const [numeroCheque, setNumeroCheque] = useState("");
+  const [banco, setBanco] = useState("");
   const [registrandoPago, setRegistrandoPago] = useState(false);
 
   const cargar = useCallback(() => {
@@ -49,22 +57,30 @@ export default function ClienteDetalle() {
   useFocusEffect(
     useCallback(() => {
       cargar();
-    }, [cargar])
+    }, [cargar]),
   );
 
   const registrarPago = async () => {
-    const montoNum = Number(monto.replace(',', '.'));
+    const montoNum = Number(monto.replace(",", "."));
     if (!montoNum || montoNum <= 0) {
-      showAlert('Pago', 'Ingresá un monto válido.');
+      showAlert("Pago", "Ingresá un monto válido.");
       return;
     }
     if (!metodoPago) {
-      showAlert('Pago', 'Elegí la forma de pago.');
+      showAlert("Pago", "Elegí la forma de pago.");
       return;
     }
     const diasChequeNum = Number(diasCheque);
-    if (metodoPago === 'cheque' && (!diasChequeNum || diasChequeNum <= 0)) {
-      showAlert('Pago', 'Indicá a cuántos días es el cheque.');
+    if (metodoPago === "cheque" && (!diasChequeNum || diasChequeNum <= 0)) {
+      showAlert("Pago", "Indicá a cuántos días es el cheque.");
+      return;
+    }
+    if (metodoPago === "cheque" && !numeroCheque.trim()) {
+      showAlert("Pago", "Indicá el número de cheque.");
+      return;
+    }
+    if (metodoPago === "cheque" && !banco.trim()) {
+      showAlert("Pago", "Indicá el banco del cheque.");
       return;
     }
     setRegistrandoPago(true);
@@ -73,14 +89,21 @@ export default function ClienteDetalle() {
         clienteId,
         monto: montoNum,
         metodo: metodoPago,
-        diasCheque: metodoPago === 'cheque' ? diasChequeNum : undefined,
+        diasCheque: metodoPago === "cheque" ? diasChequeNum : undefined,
+        numeroCheque: metodoPago === "cheque" ? numeroCheque.trim() : undefined,
+        banco: metodoPago === "cheque" ? banco.trim() : undefined,
       });
-      setMonto('');
+      setMonto("");
       setMetodoPago(null);
-      setDiasCheque('');
+      setDiasCheque("");
+      setNumeroCheque("");
+      setBanco("");
       cargar();
     } catch (e) {
-      showAlert('Pago', e instanceof Error ? e.message : 'No se pudo registrar el pago.');
+      showAlert(
+        "Pago",
+        e instanceof Error ? e.message : "No se pudo registrar el pago.",
+      );
     } finally {
       setRegistrandoPago(false);
     }
@@ -103,8 +126,16 @@ export default function ClienteDetalle() {
   }
 
   return (
-    <Screen title={cliente.nombre} subtitle={`Cliente #${cliente.numeroCliente}`} scrollable>
-      {cliente.razonSocial || cliente.cuit || cliente.condicionIva || cliente.telefono || cliente.direccion ? (
+    <Screen
+      title={cliente.nombre}
+      subtitle={`Cliente #${cliente.numeroCliente}`}
+      scrollable
+    >
+      {cliente.razonSocial ||
+      cliente.cuit ||
+      cliente.condicionIva ||
+      cliente.telefono ||
+      cliente.direccion ? (
         <View style={styles.card}>
           <Text style={styles.seccion}>Datos del cliente</Text>
           {cliente.razonSocial ? (
@@ -142,15 +173,30 @@ export default function ClienteDetalle() {
 
       <View style={styles.card}>
         <Text style={styles.label}>Saldo actual</Text>
-        <Text style={[styles.saldo, saldo > 0 && styles.saldoDeudor]}>${saldo.toFixed(2)}</Text>
-        <Input label="Registrar pago" value={monto} onChangeText={setMonto} keyboardType="decimal-pad" />
+        <Text style={[styles.saldo, saldo > 0 && styles.saldoDeudor]}>
+          ${saldo.toFixed(2)}
+        </Text>
+        <Input
+          label="Registrar pago"
+          value={monto}
+          onChangeText={setMonto}
+          keyboardType="decimal-pad"
+        />
         <MetodoPagoSelector
           metodo={metodoPago}
           onMetodoChange={setMetodoPago}
           diasCheque={diasCheque}
           onDiasChequeChange={setDiasCheque}
+          numeroCheque={numeroCheque}
+          onNumeroChequeChange={setNumeroCheque}
+          banco={banco}
+          onBancoChange={setBanco}
         />
-        <Button label="REGISTRAR PAGO" loading={registrandoPago} onPress={() => void registrarPago()} />
+        <Button
+          label="REGISTRAR PAGO"
+          loading={registrandoPago}
+          onPress={() => void registrarPago()}
+        />
       </View>
 
       <Text style={styles.seccion}>Historial de compras</Text>
@@ -164,7 +210,9 @@ export default function ClienteDetalle() {
             onPress={() => router.push(`/(admin)/ventas/${v.id}/remito`)}
           >
             <Text style={styles.nombre}>Remito N° {v.numeroRemito}</Text>
-            <Text style={styles.label}>{new Date(v.fecha).toLocaleDateString('es-AR')}</Text>
+            <Text style={styles.label}>
+              {new Date(v.fecha).toLocaleDateString("es-AR")}
+            </Text>
             <Text style={styles.importe}>${v.totalImporte.toFixed(2)}</Text>
           </Pressable>
         ))
@@ -178,10 +226,21 @@ export default function ClienteDetalle() {
           <View key={p.id} style={styles.card}>
             <Text style={styles.nombre}>${p.monto.toFixed(2)}</Text>
             <Text style={styles.label}>
-              {p.metodo ? METODO_PAGO_LABEL[p.metodo] : 'Sin especificar'}
-              {p.metodo === 'cheque' && p.diasCheque ? ` · a ${p.diasCheque} días` : ''}
+              {p.metodo ? METODO_PAGO_LABEL[p.metodo] : "Sin especificar"}
+              {p.metodo === "cheque" && p.diasCheque
+                ? ` · a ${p.diasCheque} días`
+                : ""}
             </Text>
-            <Text style={styles.label}>{new Date(p.fecha).toLocaleDateString('es-AR')}</Text>
+            {p.metodo === "cheque" && (p.numeroCheque || p.banco) ? (
+              <Text style={styles.label}>
+                {p.numeroCheque ? `N° ${p.numeroCheque}` : ""}
+                {p.numeroCheque && p.banco ? " · " : ""}
+                {p.banco ?? ""}
+              </Text>
+            ) : null}
+            <Text style={styles.label}>
+              {new Date(p.fecha).toLocaleDateString("es-AR")}
+            </Text>
           </View>
         ))
       )}
@@ -190,14 +249,54 @@ export default function ClienteDetalle() {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 4, marginBottom: 8 },
-  seccion: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: COLORS.grisTexto, marginTop: 8 },
-  vacio: { fontFamily: 'Poppins_400Regular', color: COLORS.grisSecundario, marginBottom: 8 },
-  label: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },
-  datoLabel: { fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: COLORS.grisSecundario },
-  dato: { fontFamily: 'Poppins_400Regular', fontSize: 13, color: COLORS.grisTexto },
-  nombre: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: COLORS.grisTexto },
-  importe: { fontFamily: 'Poppins_600SemiBold', fontSize: 14, color: COLORS.doradoOscuro },
-  saldo: { fontFamily: 'Poppins_700Bold', fontSize: 22, color: COLORS.exito, marginBottom: 8 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 14,
+    gap: 4,
+    marginBottom: 8,
+  },
+  seccion: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 15,
+    color: COLORS.grisTexto,
+    marginTop: 8,
+  },
+  vacio: {
+    fontFamily: "Poppins_400Regular",
+    color: COLORS.grisSecundario,
+    marginBottom: 8,
+  },
+  label: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 12,
+    color: COLORS.grisSecundario,
+  },
+  datoLabel: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisSecundario,
+  },
+  dato: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+  },
+  nombre: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 15,
+    color: COLORS.grisTexto,
+  },
+  importe: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: COLORS.doradoOscuro,
+  },
+  saldo: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 22,
+    color: COLORS.exito,
+    marginBottom: 8,
+  },
   saldoDeudor: { color: COLORS.error },
 });

@@ -145,12 +145,16 @@ CREATE TABLE IF NOT EXISTS pagos (
   monto NUMERIC NOT NULL,
   metodo TEXT,
   dias_cheque INTEGER,
+  numero_cheque TEXT,
+  banco TEXT,
   fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Por si la tabla ya existía de una corrida anterior del esquema.
 ALTER TABLE pagos ADD COLUMN IF NOT EXISTS dias_cheque INTEGER;
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS numero_cheque TEXT;
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS banco TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_reses_estado ON reses (estado);
 CREATE INDEX IF NOT EXISTS idx_venta_items_venta ON venta_items (venta_id);
@@ -195,11 +199,16 @@ WHERE NOT EXISTS (
 CREATE TABLE IF NOT EXISTS items_stock (
   id BIGSERIAL PRIMARY KEY,
   producto_id BIGINT NOT NULL REFERENCES productos(id),
+  lote_id BIGINT REFERENCES lotes_ingreso(id),
   cantidad NUMERIC NOT NULL,
   cantidad_disponible NUMERIC NOT NULL,
   registrado_por TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Por si la tabla ya existía de una corrida anterior del esquema (sin lote_id).
+ALTER TABLE items_stock ADD COLUMN IF NOT EXISTS lote_id BIGINT REFERENCES lotes_ingreso(id);
+CREATE INDEX IF NOT EXISTS idx_items_stock_lote ON items_stock (lote_id);
 
 CREATE INDEX IF NOT EXISTS idx_items_stock_producto ON items_stock (producto_id);
 

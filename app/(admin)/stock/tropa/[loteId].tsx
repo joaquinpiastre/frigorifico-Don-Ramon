@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { ItemStockCard } from "@/components/stock/ItemStockCard";
 import { ResCard } from "@/components/stock/ResCard";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -19,9 +20,10 @@ import {
   listarLotesApi,
   listarResesApi,
 } from "@/services/stockApi";
+import { listarStockItemsApi } from "@/services/stockItemsApi";
 import { showAlert } from "@/utils/alert";
 import { aInputFecha, formatoFechaCorta } from "@/utils/fecha";
-import type { LoteIngreso, Res } from "@/types";
+import type { ItemStock, LoteIngreso, Res } from "@/types";
 
 export default function TropaDetalle() {
   const { loteId } = useLocalSearchParams<{ loteId: string }>();
@@ -29,6 +31,7 @@ export default function TropaDetalle() {
 
   const [lote, setLote] = useState<LoteIngreso | null>(null);
   const [reses, setReses] = useState<Res[]>([]);
+  const [itemsStock, setItemsStock] = useState<ItemStock[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [editandoFecha, setEditandoFecha] = useState(false);
@@ -40,14 +43,17 @@ export default function TropaDetalle() {
     Promise.all([
       listarLotesApi(),
       listarResesApi({ loteId: loteIdNum, estado: "en_stock", limit: 500 }),
+      listarStockItemsApi({ loteId: loteIdNum }),
     ])
-      .then(([lotes, resesData]) => {
+      .then(([lotes, resesData, itemsData]) => {
         setLote(lotes.find((l) => l.id === loteIdNum) ?? null);
         setReses(resesData);
+        setItemsStock(itemsData.filter((i) => i.cantidadDisponible > 0));
       })
       .catch(() => {
         setLote(null);
         setReses([]);
+        setItemsStock([]);
       })
       .finally(() => setCargando(false));
   }, [loteIdNum]);
@@ -82,11 +88,12 @@ export default function TropaDetalle() {
   };
 
   const kilosTotales = reses.reduce((acc, r) => acc + r.kilosDisponibles, 0);
+  const totalItems = reses.length + itemsStock.length;
 
   return (
     <Screen
       title={`Tropa ${lote?.numeroTropa ?? loteIdNum}`}
-      subtitle={`${reses.length} ítem(s) · ${kilosTotales.toFixed(0)} kg disponibles`}
+      subtitle={`${totalItems} ítem(s) · ${kilosTotales.toFixed(0)} kg de carne disponibles`}
       scrollable
     >
       <View style={styles.card}>
@@ -133,13 +140,27 @@ export default function TropaDetalle() {
 
       {cargando ? (
         <ActivityIndicator color={COLORS.negro} style={{ marginTop: 20 }} />
-      ) : reses.length === 0 ? (
+      ) : totalItems === 0 ? (
         <Text style={styles.vacio}>No hay stock disponible de esta tropa.</Text>
       ) : (
         <View style={{ gap: 10 }}>
-          {reses.map((res) => (
-            <ResCard key={res.id} res={res} onEliminado={cargar} />
-          ))}
+          {reses.length > 0 ? (
+            <>
+              <Text style={styles.seccion}>Reses</Text>
+              {reses.map((res) => (
+                <ResCard key={res.id} res={res} onEliminado={cargar} />
+              ))}
+            </>
+          ) : null}
+
+          {itemsStock.length > 0 ? (
+            <>
+              <Text style={styles.seccion}>Otros productos</Text>
+              {itemsStock.map((item) => (
+                <ItemStockCard key={item.id} item={item} />
+              ))}
+            </>
+          ) : null}
         </View>
       )}
 
@@ -170,6 +191,12 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 6,
     marginBottom: 12,
+  },
+  seccion: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 14,
+    color: COLORS.grisTexto,
+    marginTop: 4,
   },
   fechaFila: { flexDirection: "row", alignItems: "center", gap: 6 },
   fechaTexto: {

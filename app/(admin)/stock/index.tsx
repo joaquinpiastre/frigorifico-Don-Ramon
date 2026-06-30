@@ -9,19 +9,23 @@ import {
   Text,
   View,
 } from "react-native";
+import { ItemStockCard } from "@/components/stock/ItemStockCard";
 import { ResCard } from "@/components/stock/ResCard";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
 import { listarLotesApi, listarResesApi } from "@/services/stockApi";
+import { listarStockItemsApi } from "@/services/stockItemsApi";
 import { formatoFechaCorta } from "@/utils/fecha";
-import type { LoteIngreso, Res } from "@/types";
+import type { ItemStock, LoteIngreso, Res } from "@/types";
 
 const DEBOUNCE_MS = 350;
+const SIN_TROPA = -1;
 
 export default function StockIndex() {
   const [reses, setReses] = useState<Res[]>([]);
+  const [itemsStock, setItemsStock] = useState<ItemStock[]>([]);
   const [lotes, setLotes] = useState<LoteIngreso[]>([]);
   const [cargando, setCargando] = useState(true);
   const [busqueda, setBusqueda] = useState("");
@@ -40,14 +44,17 @@ export default function StockIndex() {
         q: busquedaActiva || undefined,
         limit: 200,
       }),
+      listarStockItemsApi(),
       listarLotesApi(),
     ])
-      .then(([resesData, lotesData]) => {
+      .then(([resesData, itemsData, lotesData]) => {
         setReses(resesData);
+        setItemsStock(itemsData.filter((i) => i.cantidadDisponible > 0));
         setLotes(lotesData);
       })
       .catch(() => {
         setReses([]);
+        setItemsStock([]);
         setLotes([]);
       })
       .finally(() => setCargando(false));
@@ -59,24 +66,41 @@ export default function StockIndex() {
     }, [cargar]),
   );
 
+  const itemsStockFiltrados = useMemo(() => {
+    const q = busquedaActiva.trim().toLowerCase();
+    if (!q) return itemsStock;
+    return itemsStock.filter((i) => i.productoNombre.toLowerCase().includes(q));
+  }, [itemsStock, busquedaActiva]);
+
   const grupos = useMemo(() => {
-    const porLote = new Map<number, Res[]>();
-    for (const res of reses) {
-      const lista = porLote.get(res.loteId) ?? [];
-      lista.push(res);
-      porLote.set(res.loteId, lista);
-    }
+    const porLote = new Map<number, { reses: Res[]; items: ItemStock[] }>();
+    const obtener = (loteId: number) => {
+      let g = porLote.get(loteId);
+      if (!g) {
+        g = { reses: [], items: [] };
+        porLote.set(loteId, g);
+      }
+      return g;
+    };
+    for (const res of reses) obtener(res.loteId).reses.push(res);
+    for (const item of itemsStockFiltrados)
+      obtener(item.loteId ?? SIN_TROPA).items.push(item);
+
     return Array.from(porLote.entries())
-      .map(([loteId, items]) => ({
-        lote: lotes.find((l) => l.id === loteId) ?? null,
+      .map(([loteId, g]) => ({
+        lote:
+          loteId === SIN_TROPA
+            ? null
+            : (lotes.find((l) => l.id === loteId) ?? null),
         loteId,
-        items,
+        ...g,
       }))
       .sort((a, b) => b.loteId - a.loteId);
-  }, [reses, lotes]);
+  }, [reses, itemsStockFiltrados, lotes]);
 
   const kilosTotales = reses.reduce((acc, r) => acc + r.kilosDisponibles, 0);
   const hayBusqueda = busquedaActiva.length > 0;
+  const hayResultados = grupos.length > 0;
 
   return (
     <Screen title="Stock" subtitle="Stock disponible" scrollable>
@@ -91,7 +115,7 @@ export default function StockIndex() {
       />
 
       <Input
-        placeholder="Buscar por Cor, garrón o clasificación…"
+        placeholder="Buscar por Cor, garrón, clasificación o producto…"
         value={busqueda}
         onChangeText={setBusqueda}
         autoCapitalize="none"
@@ -99,62 +123,86 @@ export default function StockIndex() {
       />
 
       <View style={styles.resumen}>
-        <Text style={styles.resumenTexto}>{reses.length} ítems</Text>
         <Text style={styles.resumenTexto}>
-          {kilosTotales.toFixed(0)} kg disponibles
+          {reses.length + itemsStock.length} ítems
+        </Text>
+        <Text style={styles.resumenTexto}>
+          {kilosTotales.toFixed(0)} kg de carne disponibles
         </Text>
       </View>
 
       {cargando ? (
         <ActivityIndicator color={COLORS.negro} style={{ marginTop: 20 }} />
-      ) : grupos.length === 0 ? (
+      ) : !hayResultados ? (
         <Text style={styles.vacio}>
           {hayBusqueda
             ? `Sin resultados para "${busquedaActiva}".`
             : "No hay stock disponible."}
         </Text>
       ) : hayBusqueda ? (
-        // Con búsqueda activa mostramos las reses encontradas directamente, agrupadas por tropa.
-        grupos.map(({ lote, loteId, items }) => (
+        // Con búsqueda activa mostramos lo encontrado directamente, agrupado por tropa.
+        grupos.map(({ lote, loteId, reses: resesGrupo, items }) => (
           <View key={loteId} style={styles.grupo}>
             <Text style={styles.tropaNumeroChico}>
-              Tropa {lote?.numeroTropa ?? loteId}
+              {loteId === SIN_TROPA
+                ? "Sin tropa asignada"
+                : `Tropa ${lote?.numeroTropa ?? loteId}`}
             </Text>
-            {items.map((res) => (
-              <ResCard key={res.id} res={res} onEliminado={cargar} />
+            {resesGrupo.map((res) => (
+              <ResCard key={`res-${res.id}`} res={res} onEliminado={cargar} />
+            ))}
+            {items.map((item) => (
+              <ItemStockCard key={`item-${item.id}`} item={item} />
             ))}
           </View>
         ))
       ) : (
-        // Sin búsqueda: solo el resumen de cada tropa; tocarla abre su stock.
-        grupos.map(({ lote, loteId, items }) => {
-          const kilosTropa = items.reduce(
+        // Sin búsqueda: solo el resumen de cada tropa; tocarla abre su stock completo.
+        grupos.map(({ lote, loteId, reses: resesGrupo, items }) => {
+          const kilosTropa = resesGrupo.reduce(
             (acc, r) => acc + r.kilosDisponibles,
             0,
           );
+          const totalItems = resesGrupo.length + items.length;
           return (
             <Pressable
               key={loteId}
               style={styles.tropaCard}
-              onPress={() => router.push(`/(admin)/stock/tropa/${loteId}`)}
+              onPress={() =>
+                loteId === SIN_TROPA
+                  ? null
+                  : router.push(`/(admin)/stock/tropa/${loteId}`)
+              }
             >
               <View style={{ flex: 1 }}>
                 <Text style={styles.tropaNumero}>
-                  Tropa {lote?.numeroTropa ?? loteId}
+                  {loteId === SIN_TROPA
+                    ? "Sin tropa asignada"
+                    : `Tropa ${lote?.numeroTropa ?? loteId}`}
                 </Text>
-                <Text style={styles.tropaFecha}>
-                  {formatoFechaCorta(lote?.fechaFaena)}
-                </Text>
+                {loteId !== SIN_TROPA ? (
+                  <Text style={styles.tropaFecha}>
+                    {formatoFechaCorta(lote?.fechaFaena)}
+                  </Text>
+                ) : null}
               </View>
               <View style={{ alignItems: "flex-end" }}>
                 <Text style={styles.tropaResumen}>
-                  {items.length} ítem(s) · {kilosTropa.toFixed(0)} kg
+                  {totalItems} ítem(s)
+                  {resesGrupo.length > 0
+                    ? ` · ${kilosTropa.toFixed(0)} kg`
+                    : ""}
+                  {items.length > 0
+                    ? ` · ${items.length} producto(s) sin código`
+                    : ""}
                 </Text>
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={COLORS.dorado}
-                />
+                {loteId !== SIN_TROPA ? (
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color={COLORS.dorado}
+                  />
+                ) : null}
               </View>
             </Pressable>
           );
@@ -162,7 +210,8 @@ export default function StockIndex() {
       )}
       {reses.length === 200 ? (
         <Text style={styles.aviso}>
-          Mostrando los primeros 200 resultados. Afiná la búsqueda para ver más.
+          Mostrando los primeros 200 resultados de reses. Afiná la búsqueda para
+          ver más.
         </Text>
       ) : null}
     </Screen>
@@ -227,5 +276,6 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 12,
     color: COLORS.doradoClaro,
+    textAlign: "right",
   },
 });
