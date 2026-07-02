@@ -241,6 +241,9 @@ export default function ClienteDetalle() {
             <Text style={styles.label}>
               {new Date(p.fecha).toLocaleDateString("es-AR")}
             </Text>
+            {p.registradoPor ? (
+              <Text style={styles.label}>Registrado por: {p.registradoPor}</Text>
+            ) : null}
           </View>
         ))
       )}

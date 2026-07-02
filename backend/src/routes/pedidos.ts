@@ -24,11 +24,11 @@ const pedidoSchema = z.object({
   items: z.array(itemSchema).min(1),
 });
 
-// POST /pedidos — el admin crea el pedido completo y lo asigna a un repartidor
+// POST /pedidos — admin u operador crean el pedido y lo asignan a un repartidor
 pedidosRouter.post(
   "/pedidos",
   requireAuth,
-  requireRol("admin"),
+  requireRol("operador", "admin"),
   async (req, res) => {
     const parsed = pedidoSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -163,10 +163,11 @@ async function descontarStockItem(
         { status: 400 },
       );
     }
+    // Si tras descontar quedan < 3 kg, los asignamos al comprador actual (merma de heladera)
     await client.query(
       `update reses
-       set kilos_disponibles = kilos_disponibles - $1,
-           estado = case when kilos_disponibles - $1 <= 0 then 'agotada' else estado end
+       set kilos_disponibles = case when kilos_disponibles - $1 < 3 then 0 else kilos_disponibles - $1 end,
+           estado = case when kilos_disponibles - $1 < 3 then 'agotada' else estado end
        where id = $2`,
       [item.cantidad, item.resId],
     );
@@ -344,5 +345,33 @@ pedidosRouter.patch(
       false,
     );
     res.status(status).json(body);
+  },
+);
+
+const repesajeSchema = z.object({ cantidad: z.number().positive() });
+
+// PATCH /pedidos/:id/items/:itemId/repesar — operador actualiza el peso real antes de armar
+pedidosRouter.patch(
+  "/pedidos/:id/items/:itemId/repesar",
+  requireAuth,
+  requireRol("operador", "admin"),
+  async (req, res) => {
+    const pedidoId = Number(req.params.id);
+    const itemId = Number(req.params.itemId);
+    const parsed = repesajeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Cantidad inválida." });
+      return;
+    }
+    const { cantidad } = parsed.data;
+    const { rows } = await pool.query(
+      `update pedido_items set cantidad = $1 where id = $2 and pedido_id = $3 returning id`,
+      [cantidad, itemId, pedidoId],
+    );
+    if (rows.length === 0) {
+      res.status(404).json({ error: "Ítem no encontrado." });
+      return;
+    }
+    res.json({ ok: true });
   },
 );

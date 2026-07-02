@@ -51,3 +51,14 @@ export async function cargarPedidoApi(id: number): Promise<void> {
 export async function entregarPedidoApi(id: number): Promise<void> {
   await apiRequest(`/pedidos/${id}/entregar`, { method: "PATCH" });
 }
+
+export async function repesarItemApi(
+  pedidoId: number,
+  itemId: number,
+  cantidad: number,
+): Promise<void> {
+  await apiRequest(`/pedidos/${pedidoId}/items/${itemId}/repesar`, {
+    method: "PATCH",
+    body: JSON.stringify({ cantidad }),
+  });
+}

@@ -86,6 +86,7 @@ export interface Pago {
   numeroCheque: string | null;
   banco: string | null;
   fecha: string;
+  registradoPor: string | null;
 }
 
 export interface VentaItemDetalle {

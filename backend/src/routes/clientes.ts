@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth } from "../auth.js";
+import { requireAuth, type AuthClaims } from "../auth.js";
 import { pool } from "../db/client.js";
 
 export const clientesRouter = Router();
@@ -110,7 +110,7 @@ clientesRouter.get("/admin/clientes/:id", requireAuth, async (req, res) => {
   );
   const pagos = await pool.query(
     `select id, venta_id as "ventaId", monto, metodo, dias_cheque as "diasCheque",
-            numero_cheque as "numeroCheque", banco, fecha
+            numero_cheque as "numeroCheque", banco, fecha, registrado_por as "registradoPor"
      from pagos where cliente_id = $1 order by fecha desc`,
     [id],
   );
@@ -208,11 +208,13 @@ clientesRouter.post("/admin/pagos", requireAuth, async (req, res) => {
       .json({ error: 'Los datos de cheque solo aplican al método "cheque".' });
     return;
   }
+  const usuario = (req as { user?: AuthClaims }).user;
   const { rows } = await pool.query(
-    `insert into pagos (cliente_id, venta_id, monto, metodo, dias_cheque, numero_cheque, banco)
-     values ($1, $2, $3, $4, $5, $6, $7)
+    `insert into pagos (cliente_id, venta_id, monto, metodo, dias_cheque, numero_cheque, banco, registrado_por)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
      returning id, cliente_id as "clienteId", venta_id as "ventaId", monto, metodo,
-               dias_cheque as "diasCheque", numero_cheque as "numeroCheque", banco, fecha`,
+               dias_cheque as "diasCheque", numero_cheque as "numeroCheque", banco, fecha,
+               registrado_por as "registradoPor"`,
     [
       clienteId,
       ventaId ?? null,
@@ -221,6 +223,7 @@ clientesRouter.post("/admin/pagos", requireAuth, async (req, res) => {
       diasCheque ?? null,
       numeroCheque ?? null,
       banco ?? null,
+      usuario?.nombre ?? null,
     ],
   );
   res.json({ pago: rows[0] });

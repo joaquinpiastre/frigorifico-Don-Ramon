@@ -1,6 +1,7 @@
+import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { showAlert } from "@/utils/alert";
 import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
@@ -9,6 +10,7 @@ import {
   armarPedidoApi,
   listarPedidosApi,
   obtenerPedidoApi,
+  repesarItemApi,
 } from "@/services/pedidosApi";
 import type { PedidoDetalle } from "@/types";
 
@@ -16,12 +18,24 @@ export default function PedidosParaArmar() {
   const [pedidos, setPedidos] = useState<PedidoDetalle[]>([]);
   const [cargando, setCargando] = useState(true);
   const [armandoId, setArmandoId] = useState<number | null>(null);
+  // itemId → peso real ingresado por el operador (repesaje)
+  const [repesajes, setRepesajes] = useState<Record<number, string>>({});
 
   const cargar = useCallback(() => {
     setCargando(true);
     listarPedidosApi({ estado: "pendiente" })
       .then((lista) => Promise.all(lista.map((p) => obtenerPedidoApi(p.id))))
-      .then(setPedidos)
+      .then((detallados) => {
+        setPedidos(detallados);
+        // Pre-llenar repesajes con la cantidad original de cada ítem con res
+        const init: Record<number, string> = {};
+        for (const p of detallados) {
+          for (const item of p.items) {
+            if (item.resId) init[item.id] = String(item.cantidad);
+          }
+        }
+        setRepesajes(init);
+      })
       .catch(() => setPedidos([]))
       .finally(() => setCargando(false));
   }, []);
@@ -31,6 +45,16 @@ export default function PedidosParaArmar() {
   const marcarArmado = async (pedido: PedidoDetalle) => {
     setArmandoId(pedido.id);
     try {
+      // Aplicar repesajes que difieren de la cantidad original
+      for (const item of pedido.items) {
+        if (!item.resId) continue;
+        const pesoReal = Number(
+          (repesajes[item.id] ?? "").replace(",", "."),
+        );
+        if (pesoReal > 0 && pesoReal !== item.cantidad) {
+          await repesarItemApi(pedido.id, item.id, pesoReal);
+        }
+      }
       await armarPedidoApi(pedido.id);
       cargar();
     } catch (e) {
@@ -49,9 +73,15 @@ export default function PedidosParaArmar() {
       subtitle="Separá la mercadería y marcá listo"
       scrollable
     >
+      <Button
+        label="CREAR NUEVO PEDIDO"
+        onPress={() => router.push("/(operador)/pedidos/nuevo")}
+      />
+
       {!cargando && pedidos.length === 0 ? (
         <Text style={styles.vacio}>No hay pedidos pendientes.</Text>
       ) : null}
+
       {pedidos.map((p) => {
         const total = p.items.reduce(
           (acc, i) => acc + i.cantidad * i.precio,
@@ -67,8 +97,7 @@ export default function PedidosParaArmar() {
               {p.items.map((item) => (
                 <View key={item.id} style={styles.itemFila}>
                   <Text style={styles.itemTexto}>
-                    {item.productoNombre} · {item.cantidad} × ${item.precio} = $
-                    {(item.cantidad * item.precio).toFixed(2)}
+                    {item.productoNombre} · ${item.precio}/kg
                   </Text>
                   {item.cor || item.garron || item.tropa ? (
                     <Text style={styles.itemSub}>
@@ -80,10 +109,32 @@ export default function PedidosParaArmar() {
                   {item.nota ? (
                     <Text style={styles.itemNota}>Nota: {item.nota}</Text>
                   ) : null}
+
+                  {item.resId ? (
+                    <View style={styles.repesajeRow}>
+                      <Text style={styles.repesajeLabel}>Peso real (kg):</Text>
+                      <TextInput
+                        style={styles.repesajeInput}
+                        value={repesajes[item.id] ?? String(item.cantidad)}
+                        onChangeText={(v) =>
+                          setRepesajes((prev) => ({ ...prev, [item.id]: v }))
+                        }
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                      />
+                      <Text style={styles.itemSub}>
+                        (pedido: {item.cantidad} kg)
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.itemSub}>
+                      Cantidad: {item.cantidad} kg
+                    </Text>
+                  )}
                 </View>
               ))}
             </View>
-            <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
+            <Text style={styles.total}>Total pedido: ${total.toFixed(2)}</Text>
             <Button
               label="MARCAR ARMADO"
               loading={armandoId === p.id}
@@ -103,6 +154,7 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 6,
     marginBottom: 10,
+    marginTop: 8,
   },
   cliente: {
     fontFamily: "Poppins_700Bold",
@@ -116,9 +168,10 @@ const styles = StyleSheet.create({
   },
   items: { gap: 4, marginTop: 4 },
   itemFila: {
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderTopWidth: 1,
     borderTopColor: COLORS.grisClaro,
+    gap: 3,
   },
   itemTexto: {
     fontFamily: "Poppins_600SemiBold",
@@ -134,6 +187,30 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     fontSize: 11,
     color: COLORS.advertencia,
+  },
+  repesajeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+    flexWrap: "wrap",
+  },
+  repesajeLabel: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: COLORS.grisTexto,
+  },
+  repesajeInput: {
+    borderWidth: 1,
+    borderColor: COLORS.doradoOscuro,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisTexto,
+    minWidth: 72,
+    textAlign: "center",
   },
   total: {
     fontFamily: "Poppins_700Bold",
