@@ -293,3 +293,59 @@ resesRouter.delete(
     }
   },
 );
+
+// DELETE /admin/lotes/:id — elimina una tropa y todo su contenido (solo si no tiene ventas)
+resesRouter.delete(
+  "/admin/lotes/:id",
+  requireAuth,
+  requireRol("admin"),
+  async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Id inválido." });
+      return;
+    }
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      // Verificar si alguna res de esta tropa ya tiene pedidos o ventas
+      const conVentas = await client.query(
+        `select 1 from reses r
+         where r.lote_id = $1
+           and exists (select 1 from pedido_items pi where pi.res_id = r.id)
+         limit 1`,
+        [id],
+      );
+      if (conVentas.rows.length > 0) {
+        await client.query("ROLLBACK");
+        res.status(409).json({
+          error:
+            "No se puede eliminar: hay reses de esta tropa que ya tienen pedidos asociados.",
+        });
+        return;
+      }
+
+      // Eliminar contenido de la tropa
+      await client.query("delete from items_stock where lote_id = $1", [id]);
+      await client.query("delete from reses where lote_id = $1", [id]);
+      const { rows } = await client.query(
+        "delete from lotes_ingreso where id = $1 returning id",
+        [id],
+      );
+      if (rows.length === 0) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "No existe una tropa con ese id." });
+        return;
+      }
+
+      await client.query("COMMIT");
+      res.json({ ok: true });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
+);

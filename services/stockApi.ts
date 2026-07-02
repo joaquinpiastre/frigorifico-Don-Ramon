@@ -100,3 +100,7 @@ export async function buscarResPorCodigoApi(
 export async function eliminarResApi(id: number): Promise<void> {
   await apiRequest(`/admin/reses/${id}`, { method: "DELETE" });
 }
+
+export async function eliminarLoteApi(id: number): Promise<void> {
+  await apiRequest(`/admin/lotes/${id}`, { method: "DELETE" });
+}

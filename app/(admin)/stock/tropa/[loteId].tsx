@@ -17,11 +17,12 @@ import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
 import {
   actualizarLoteApi,
+  eliminarLoteApi,
   listarLotesApi,
   listarResesApi,
 } from "@/services/stockApi";
 import { listarStockItemsApi } from "@/services/stockItemsApi";
-import { showAlert } from "@/utils/alert";
+import { showAlert, showConfirm } from "@/utils/alert";
 import { aInputFecha, formatoFechaCorta } from "@/utils/fecha";
 import type { ItemStock, LoteIngreso, Res } from "@/types";
 
@@ -34,6 +35,7 @@ export default function TropaDetalle() {
   const [itemsStock, setItemsStock] = useState<ItemStock[]>([]);
   const [cargando, setCargando] = useState(true);
 
+  const [eliminandoTropa, setEliminandoTropa] = useState(false);
   const [editandoFecha, setEditandoFecha] = useState(false);
   const [fechaEditada, setFechaEditada] = useState("");
   const [guardandoFecha, setGuardandoFecha] = useState(false);
@@ -42,13 +44,13 @@ export default function TropaDetalle() {
     setCargando(true);
     Promise.all([
       listarLotesApi(),
-      listarResesApi({ loteId: loteIdNum, estado: "en_stock", limit: 500 }),
+      listarResesApi({ loteId: loteIdNum, limit: 500 }),
       listarStockItemsApi({ loteId: loteIdNum }),
     ])
       .then(([lotes, resesData, itemsData]) => {
         setLote(lotes.find((l) => l.id === loteIdNum) ?? null);
         setReses(resesData);
-        setItemsStock(itemsData.filter((i) => i.cantidadDisponible > 0));
+        setItemsStock(itemsData);
       })
       .catch(() => {
         setLote(null);
@@ -69,6 +71,26 @@ export default function TropaDetalle() {
     setEditandoFecha(true);
   };
 
+  const eliminarTropa = async () => {
+    const confirmado = await showConfirm(
+      "Eliminar tropa",
+      `Se va a eliminar la tropa ${lote?.numeroTropa ?? ""} y todo su contenido. Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    setEliminandoTropa(true);
+    try {
+      await eliminarLoteApi(loteIdNum);
+      router.replace("/(admin)/stock");
+    } catch (e) {
+      showAlert(
+        "Tropa",
+        e instanceof Error ? e.message : "No se pudo eliminar la tropa.",
+      );
+    } finally {
+      setEliminandoTropa(false);
+    }
+  };
+
   const guardarFecha = async () => {
     setGuardandoFecha(true);
     try {
@@ -87,13 +109,17 @@ export default function TropaDetalle() {
     }
   };
 
-  const kilosTotales = reses.reduce((acc, r) => acc + r.kilosDisponibles, 0);
-  const totalItems = reses.length + itemsStock.length;
+  const resesDisponibles = reses.filter((r) => r.estado === "en_stock");
+  const resesVendidas = reses.filter((r) => r.estado === "agotada");
+  const itemsDisponibles = itemsStock.filter((i) => i.cantidadDisponible > 0);
+  const itemsAgotados = itemsStock.filter((i) => i.cantidadDisponible === 0);
+  const kilosDisponibles = resesDisponibles.reduce((acc, r) => acc + r.kilosDisponibles, 0);
+  const totalIngresados = reses.length + itemsStock.length;
 
   return (
     <Screen
       title={`Tropa ${lote?.numeroTropa ?? loteIdNum}`}
-      subtitle={`${totalItems} ítem(s) · ${kilosTotales.toFixed(0)} kg de carne disponibles`}
+      subtitle={`${totalIngresados} ítem(s) ingresados · ${kilosDisponibles.toFixed(0)} kg disponibles`}
       scrollable
     >
       <View style={styles.card}>
@@ -140,24 +166,53 @@ export default function TropaDetalle() {
 
       {cargando ? (
         <ActivityIndicator color={COLORS.negro} style={{ marginTop: 20 }} />
-      ) : totalItems === 0 ? (
-        <Text style={styles.vacio}>No hay stock disponible de esta tropa.</Text>
+      ) : totalIngresados === 0 ? (
+        <Text style={styles.vacio}>No se cargó nada en esta tropa.</Text>
       ) : (
         <View style={{ gap: 10 }}>
-          {reses.length > 0 ? (
+          {/* — Reses disponibles — */}
+          {resesDisponibles.length > 0 ? (
             <>
-              <Text style={styles.seccion}>Reses</Text>
-              {reses.map((res) => (
+              <Text style={styles.seccion}>Reses en stock</Text>
+              {resesDisponibles.map((res) => (
                 <ResCard key={res.id} res={res} onEliminado={cargar} />
               ))}
             </>
           ) : null}
 
-          {itemsStock.length > 0 ? (
+          {/* — Items disponibles — */}
+          {itemsDisponibles.length > 0 ? (
             <>
-              <Text style={styles.seccion}>Otros productos</Text>
-              {itemsStock.map((item) => (
+              <Text style={styles.seccion}>Otros productos en stock</Text>
+              {itemsDisponibles.map((item) => (
                 <ItemStockCard key={item.id} item={item} />
+              ))}
+            </>
+          ) : null}
+
+          {/* — Vendido / agotado — */}
+          {(resesVendidas.length > 0 || itemsAgotados.length > 0) ? (
+            <>
+              <Text style={[styles.seccion, styles.seccionVendido]}>
+                Ya vendido de esta tropa
+              </Text>
+              {resesVendidas.map((res) => (
+                <View key={res.id} style={styles.cardVendido}>
+                  <Text style={styles.vendidoNombre}>
+                    Cor {res.cor}{res.garron ? ` · Garrón ${res.garron}` : ""}
+                  </Text>
+                  <Text style={styles.vendidoSub}>
+                    {res.kilosIngreso} kg ingresados · agotada
+                  </Text>
+                </View>
+              ))}
+              {itemsAgotados.map((item) => (
+                <View key={item.id} style={styles.cardVendido}>
+                  <Text style={styles.vendidoNombre}>{item.productoNombre}</Text>
+                  <Text style={styles.vendidoSub}>
+                    {item.cantidad} {item.unidad} ingresados · agotado
+                  </Text>
+                </View>
               ))}
             </>
           ) : null}
@@ -173,6 +228,12 @@ export default function TropaDetalle() {
             params: { loteId: String(loteIdNum) },
           })
         }
+      />
+      <Button
+        label="ELIMINAR TROPA"
+        variant="danger"
+        loading={eliminandoTropa}
+        onPress={() => void eliminarTropa()}
       />
     </Screen>
   );
@@ -197,6 +258,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.grisTexto,
     marginTop: 4,
+  },
+  seccionVendido: {
+    color: COLORS.grisSecundario,
+    marginTop: 12,
+  },
+  cardVendido: {
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    padding: 12,
+    gap: 3,
+    opacity: 0.7,
+  },
+  vendidoNombre: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    color: COLORS.grisSecundario,
+    textDecorationLine: "line-through",
+  },
+  vendidoSub: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 11,
+    color: COLORS.grisSecundario,
   },
   fechaFila: { flexDirection: "row", alignItems: "center", gap: 6 },
   fechaTexto: {
