@@ -6,6 +6,11 @@ export async function listarUsuariosApi(): Promise<UsuarioAdmin[]> {
   return data.usuarios;
 }
 
+export async function listarRepartidoresApi(): Promise<UsuarioAdmin[]> {
+  const data = await apiRequest<{ usuarios: UsuarioAdmin[] }>('/usuarios/repartidores');
+  return data.usuarios;
+}
+
 export async function crearUsuarioApi(input: {
   id: string;
   nombre: string;

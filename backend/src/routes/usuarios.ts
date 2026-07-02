@@ -13,6 +13,14 @@ usuariosRouter.get('/admin/usuarios', requireAuth, requireAdmin, async (_req, re
   res.json({ usuarios: rows });
 });
 
+// GET /usuarios/repartidores — lista de repartidores activos (accesible a todos los roles)
+usuariosRouter.get('/usuarios/repartidores', requireAuth, async (_req, res) => {
+  const { rows } = await pool.query(
+    `select id, nombre, rol, activo from usuarios where rol = 'repartidor' and activo = true order by nombre`
+  );
+  res.json({ usuarios: rows });
+});
+
 const crearUsuarioSchema = z.object({
   id: z.string().trim().min(2),
   nombre: z.string().trim().min(2),

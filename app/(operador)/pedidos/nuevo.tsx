@@ -10,7 +10,7 @@ import { listarClientesApi } from "@/services/clientesApi";
 import { crearPedidoApi } from "@/services/pedidosApi";
 import { listarProductosApi } from "@/services/productosApi";
 import { listarLotesApi, listarResesApi } from "@/services/stockApi";
-import { listarUsuariosApi } from "@/services/usuariosApi";
+import { listarRepartidoresApi } from "@/services/usuariosApi";
 import type {
   CategoriaProducto,
   Cliente,
@@ -80,10 +80,8 @@ export default function NuevoPedidoOperador() {
     listarClientesApi()
       .then(setClientes)
       .catch(() => setClientes([]));
-    listarUsuariosApi()
-      .then((us) =>
-        setRepartidores(us.filter((u) => u.rol === "repartidor" && u.activo)),
-      )
+    listarRepartidoresApi()
+      .then(setRepartidores)
       .catch(() => setRepartidores([]));
     listarProductosApi()
       .then(setProductos)
