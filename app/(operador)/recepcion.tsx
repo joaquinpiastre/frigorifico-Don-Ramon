@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FlatList,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -60,6 +61,81 @@ export default function RecepcionRapida() {
   const [mensajeStock, setMensajeStock] = useState<string | null>(null);
   const cantidadRef = useRef<TextInput>(null);
 
+  // En web, el lector de código de barras escribe muy rápido y manda Enter.
+  // Capturamos todo el teclado globalmente para no depender del foco del input.
+  const scanBufferRef = useRef("");
+  const scanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Si el foco está en un input/textarea normal, dejamos que maneje su propio input
+      // excepto cuando es el propio campo de código (lo manejamos igualmente)
+      const target = e.target as HTMLElement;
+      const isOtherInput =
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA") &&
+        target !== (codigoRef.current as unknown as HTMLElement);
+
+      if (isOtherInput) return;
+
+      if (e.key === "Enter") {
+        const scanned = scanBufferRef.current.trim();
+        scanBufferRef.current = "";
+        if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+        if (scanned && !altaPendienteRef.current && loteSeleccionadoRef.current) {
+          setMensajeCodigo(null);
+          setCodigo(scanned);
+          // pequeño delay para que React actualice el estado antes de procesar
+          setTimeout(() => {
+            void procesarCodigoDirecto(scanned);
+          }, 30);
+        }
+        return;
+      }
+
+      // Solo acumular caracteres imprimibles (el scanner no manda teclas especiales)
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (scanTimerRef.current) clearTimeout(scanTimerRef.current);
+        scanBufferRef.current += e.key;
+        // Si pasan más de 100ms sin nueva tecla, limpiamos el buffer (no era un scanner)
+        scanTimerRef.current = setTimeout(() => {
+          scanBufferRef.current = "";
+        }, 100);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refs para que el closure del listener global tenga valores actuales
+  const altaPendienteRef = useRef(altaPendiente);
+  const loteSeleccionadoRef = useRef(loteSeleccionado);
+  useEffect(() => { altaPendienteRef.current = altaPendiente; }, [altaPendiente]);
+  useEffect(() => { loteSeleccionadoRef.current = loteSeleccionado; }, [loteSeleccionado]);
+
+  const procesarCodigoDirecto = async (cor: string) => {
+    if (!cor || buscando) return;
+    setBuscando(true);
+    setMensajeCodigo(null);
+    try {
+      const existente = await buscarResPorCodigoApi(cor);
+      if (existente) {
+        setMensajeCodigo(
+          `Ya registrada · Garrón ${existente.garron ?? "–"} · ${existente.kilosDisponibles} kg`,
+        );
+        limpiarFlujoCodigo();
+        return;
+      }
+      setAltaPendiente(cor);
+      setTimeout(() => kilosRef.current?.focus(), 50);
+    } finally {
+      setBuscando(false);
+    }
+  };
+
   const productosFiltrados = useMemo(() => {
     const q = busquedaProducto.trim().toLowerCase();
     if (!q) return [];
@@ -116,24 +192,7 @@ export default function RecepcionRapida() {
   };
 
   const procesarCodigo = async () => {
-    const cor = codigo.trim();
-    if (!cor || buscando) return;
-    setBuscando(true);
-    setMensajeCodigo(null);
-    try {
-      const existente = await buscarResPorCodigoApi(cor);
-      if (existente) {
-        setMensajeCodigo(
-          `Ya registrada · Garrón ${existente.garron ?? "–"} · ${existente.kilosDisponibles} kg`,
-        );
-        limpiarFlujoCodigo();
-        return;
-      }
-      setAltaPendiente(cor);
-      setTimeout(() => kilosRef.current?.focus(), 50);
-    } finally {
-      setBuscando(false);
-    }
+    await procesarCodigoDirecto(codigo.trim());
   };
 
   const guardarRes = async () => {
