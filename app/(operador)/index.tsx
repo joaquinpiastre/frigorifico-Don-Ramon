@@ -28,6 +28,12 @@ export default function OperadorHome() {
         onPress={() => router.push('/(operador)/pedidos/cargar')}
       />
       <Button
+        label="CLIENTES"
+        variant="secondary"
+        iconLeft={<Ionicons name="people-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(operador)/clientes')}
+      />
+      <Button
         label="CERRAR SESIÓN"
         variant="danger"
         iconLeft={<Ionicons name="log-out-outline" size={18} color={COLORS.blanco} />}

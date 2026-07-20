@@ -63,10 +63,8 @@ export default function RecepcionRapida() {
 
   // Refs que siempre tienen el valor actual — el listener global los lee sin closure viejo
   const altaPendienteRef = useRef(altaPendiente);
-  const loteSeleccionadoRef = useRef(loteSeleccionado);
   const buscandoRef = useRef(buscando);
   useEffect(() => { altaPendienteRef.current = altaPendiente; }, [altaPendiente]);
-  useEffect(() => { loteSeleccionadoRef.current = loteSeleccionado; }, [loteSeleccionado]);
   useEffect(() => { buscandoRef.current = buscando; }, [buscando]);
 
   // Limpia lo que manda el lector Code 39: quita * de inicio/fin y sufijos como - o espacio
@@ -123,7 +121,7 @@ export default function RecepcionRapida() {
           clearTimeout(scanTimerRef.current);
           scanTimerRef.current = null;
         }
-        if (scanned && !altaPendienteRef.current && loteSeleccionadoRef.current) {
+        if (scanned && !altaPendienteRef.current) {
           e.preventDefault();
           setMensajeCodigo(null);
           setCodigo(scanned);
@@ -193,6 +191,8 @@ export default function RecepcionRapida() {
     setTimeout(() => tropaRef.current?.focus(), 50);
   };
 
+  const necesitaTropa = tipo === "vacuno" && !loteSeleccionado;
+
   const limpiarFlujoCodigo = () => {
     setCodigo("");
     setAltaPendiente(null);
@@ -209,6 +209,10 @@ export default function RecepcionRapida() {
   const guardarRes = async () => {
     const kilosNum = Number(kilos.replace(",", "."));
     if (!altaPendiente || !kilosNum || kilosNum <= 0 || guardandoRes) return;
+    if (necesitaTropa) {
+      setMensajeCodigo("Confirmá el número de tropa antes de guardar.");
+      return;
+    }
     setGuardandoRes(true);
     try {
       const res = await crearResApi({
@@ -274,16 +278,16 @@ export default function RecepcionRapida() {
       subtitle="Escaneá o buscá el producto, anotá la cantidad y guardá"
       scrollable
     >
-      <View style={styles.card}>
-        <Text style={styles.seccion}>Tropa</Text>
-        {loteSeleccionado ? (
+      {loteSeleccionado ? (
+        <View style={styles.card}>
           <View style={styles.tropaActiva}>
             <View style={{ flex: 1 }}>
               <Text style={styles.tropaNumero}>
                 Tropa {loteSeleccionado.numeroTropa}
               </Text>
               <Text style={styles.tropaSub}>
-                Lo que recibas a continuación queda asociado a esta tropa.
+                Lo que recibas a continuación (reses de vaca) queda asociado a
+                esta tropa.
               </Text>
             </View>
             <Button
@@ -292,108 +296,109 @@ export default function RecepcionRapida() {
               onPress={cambiarTropa}
             />
           </View>
-        ) : (
-          <>
-            <Input
-              ref={tropaRef}
-              label="Número de tropa"
-              value={numeroTropa}
-              onChangeText={setNumeroTropa}
-              onSubmitEditing={() => void confirmarTropa()}
-              autoFocus
-              returnKeyType="done"
-              placeholder="Ej: 1234"
-            />
-            {mensajeTropa ? (
-              <Text style={styles.mensaje}>{mensajeTropa}</Text>
-            ) : null}
-            <Button
-              label="CONFIRMAR TROPA"
-              loading={buscandoTropa}
-              onPress={() => void confirmarTropa()}
-            />
-          </>
-        )}
-      </View>
+        </View>
+      ) : null}
 
-      {!loteSeleccionado ? (
-        <Text style={styles.vacio}>
-          Identificá la tropa para empezar a recibir mercadería.
-        </Text>
-      ) : (
-        <>
-          <View style={styles.card}>
-            <Text style={styles.seccion}>Reses (con código de barras)</Text>
-            <Input
-              ref={codigoRef}
-              label="Código (Cor)"
-              value={codigo}
-              onChangeText={setCodigo}
-              onSubmitEditing={() => void procesarCodigo()}
-              editable={!altaPendiente}
-              autoFocus
-              blurOnSubmit={false}
-              returnKeyType="done"
-              placeholder="Esperando lectura…"
-            />
-            {mensajeCodigo ? (
-              <Text style={styles.mensaje}>{mensajeCodigo}</Text>
-            ) : null}
+      <View style={styles.card}>
+        <Text style={styles.seccion}>Reses (con código de barras)</Text>
+          <Input
+            ref={codigoRef}
+            label="Código (Cor)"
+            value={codigo}
+            onChangeText={setCodigo}
+            onSubmitEditing={() => void procesarCodigo()}
+            editable={!altaPendiente}
+            autoFocus
+            blurOnSubmit={false}
+            returnKeyType="done"
+            placeholder="Esperando lectura…"
+          />
+          {mensajeCodigo ? (
+            <Text style={styles.mensaje}>{mensajeCodigo}</Text>
+          ) : null}
 
-            {altaPendiente ? (
-              <View style={styles.altaBox}>
-                <Text style={styles.altaTitulo}>
-                  Res nueva · {altaPendiente}
-                </Text>
-                <Text style={styles.tipoLabel}>Tipo de producto</Text>
-                <View style={styles.filaChips}>
-                  {TIPOS.map((t) => (
-                    <Pressable
-                      key={t}
-                      style={[styles.chip, tipo === t && styles.chipActivo]}
-                      onPress={() => setTipo(t)}
+          {altaPendiente ? (
+            <View style={styles.altaBox}>
+              <Text style={styles.altaTitulo}>
+                Res nueva · {altaPendiente}
+              </Text>
+              <Text style={styles.tipoLabel}>Tipo de producto</Text>
+              <View style={styles.filaChips}>
+                {TIPOS.map((t) => (
+                  <Pressable
+                    key={t}
+                    style={[styles.chip, tipo === t && styles.chipActivo]}
+                    onPress={() => setTipo(t)}
+                  >
+                    <Text
+                      style={[
+                        styles.chipTexto,
+                        tipo === t && styles.chipTextoActivo,
+                      ]}
                     >
-                      <Text
-                        style={[
-                          styles.chipTexto,
-                          tipo === t && styles.chipTextoActivo,
-                        ]}
-                      >
-                        {TIPO_RES_LABEL[t]}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-                <Input
-                  ref={kilosRef}
-                  label="Kilos"
-                  value={kilos}
-                  onChangeText={setKilos}
-                  keyboardType="decimal-pad"
-                  onSubmitEditing={() => void guardarRes()}
-                  returnKeyType="done"
-                  autoFocus
-                />
-                <Input
-                  label="Garrón (opcional)"
-                  value={garron}
-                  onChangeText={setGarron}
-                />
-                <Button
-                  label="GUARDAR"
-                  loading={guardandoRes}
-                  onPress={() => void guardarRes()}
-                />
-                <Button
-                  label="CANCELAR"
-                  variant="secondary"
-                  onPress={limpiarFlujoCodigo}
-                />
+                      {TIPO_RES_LABEL[t]}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
-            ) : null}
-          </View>
 
-          <View style={styles.card}>
+              {necesitaTropa ? (
+                <>
+                  <Text style={styles.tipoLabel}>
+                    Es una res de vaca: indicá el número de tropa
+                  </Text>
+                  <Input
+                    ref={tropaRef}
+                    label="Número de tropa"
+                    value={numeroTropa}
+                    onChangeText={setNumeroTropa}
+                    onSubmitEditing={() => void confirmarTropa()}
+                    returnKeyType="done"
+                    placeholder="Ej: 1234"
+                  />
+                  {mensajeTropa ? (
+                    <Text style={styles.mensaje}>{mensajeTropa}</Text>
+                  ) : null}
+                  <Button
+                    label="CONFIRMAR TROPA"
+                    loading={buscandoTropa}
+                    onPress={() => void confirmarTropa()}
+                  />
+                </>
+              ) : (
+                <>
+                  <Input
+                    ref={kilosRef}
+                    label="Kilos"
+                    value={kilos}
+                    onChangeText={setKilos}
+                    keyboardType="decimal-pad"
+                    onSubmitEditing={() => void guardarRes()}
+                    returnKeyType="done"
+                    autoFocus
+                  />
+                  <Input
+                    label="Garrón (opcional)"
+                    value={garron}
+                    onChangeText={setGarron}
+                  />
+                  <Button
+                    label="GUARDAR"
+                    loading={guardandoRes}
+                    onPress={() => void guardarRes()}
+                  />
+                </>
+              )}
+              <Button
+                label="CANCELAR"
+                variant="secondary"
+                onPress={limpiarFlujoCodigo}
+              />
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.card}>
             <Text style={styles.seccion}>
               Otros productos (sin código de barras)
             </Text>
@@ -455,9 +460,7 @@ export default function RecepcionRapida() {
                 />
               </View>
             ) : null}
-          </View>
-        </>
-      )}
+      </View>
     </Screen>
   );
 }

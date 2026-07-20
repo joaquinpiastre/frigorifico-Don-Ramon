@@ -21,6 +21,7 @@ import {
   type Cliente,
   type MetodoPago,
   type Pago,
+  type ProductoEntregado,
   type VentaResumen,
 } from "@/types";
 
@@ -31,6 +32,9 @@ export default function ClienteDetalle() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [ventas, setVentas] = useState<VentaResumen[]>([]);
   const [pagos, setPagos] = useState<Pago[]>([]);
+  const [productosEntregados, setProductosEntregados] = useState<
+    ProductoEntregado[]
+  >([]);
   const [saldo, setSaldo] = useState(0);
   const [cargando, setCargando] = useState(true);
 
@@ -48,6 +52,7 @@ export default function ClienteDetalle() {
         setCliente(data.cliente);
         setVentas(data.ventas);
         setPagos(data.pagos);
+        setProductosEntregados(data.productosEntregados);
         setSaldo(data.saldo);
       })
       .catch(() => setCliente(null))
@@ -244,6 +249,24 @@ export default function ClienteDetalle() {
             {p.registradoPor ? (
               <Text style={styles.label}>Registrado por: {p.registradoPor}</Text>
             ) : null}
+          </View>
+        ))
+      )}
+
+      <Text style={styles.seccion}>Historial de productos entregados</Text>
+      {productosEntregados.length === 0 ? (
+        <Text style={styles.vacio}>Todavía no recibió productos entregados.</Text>
+      ) : (
+        productosEntregados.map((pe) => (
+          <View key={pe.id} style={styles.card}>
+            <Text style={styles.nombre}>{pe.productoNombre}</Text>
+            <Text style={styles.label}>
+              {pe.cantidad} × ${pe.precio.toFixed(2)} = $
+              {(pe.cantidad * pe.precio).toFixed(2)}
+            </Text>
+            <Text style={styles.label}>
+              {new Date(pe.fecha).toLocaleDateString("es-AR")}
+            </Text>
           </View>
         ))
       )}

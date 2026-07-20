@@ -115,6 +115,18 @@ clientesRouter.get("/admin/clientes/:id", requireAuth, async (req, res) => {
     [id],
   );
 
+  const productosEntregados = await pool.query(
+    `select pi.id, pi.producto_id as "productoId", pr.nombre as "productoNombre",
+            pi.cantidad, pi.precio, p.id as "pedidoId", p.entregado_en as "fecha"
+     from pedido_items pi
+     join pedidos p on p.id = pi.pedido_id
+     join productos pr on pr.id = pi.producto_id
+     where p.cliente_id = $1 and p.estado = 'entregado'
+     order by p.entregado_en desc
+     limit 200`,
+    [id],
+  );
+
   const totalVentas = ventas.rows.reduce(
     (acc, v) => acc + Number(v.totalImporte),
     0,
@@ -125,6 +137,7 @@ clientesRouter.get("/admin/clientes/:id", requireAuth, async (req, res) => {
     cliente: clienteResult.rows[0],
     ventas: ventas.rows,
     pagos: pagos.rows,
+    productosEntregados: productosEntregados.rows,
     saldo: totalVentas - totalPagos,
   });
 });

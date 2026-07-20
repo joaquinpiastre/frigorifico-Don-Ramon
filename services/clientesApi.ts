@@ -3,6 +3,7 @@ import type {
   CondicionIva,
   MetodoPago,
   Pago,
+  ProductoEntregado,
   VentaResumen,
 } from "@/types";
 import { apiRequest } from "./apiClient";
@@ -52,6 +53,7 @@ export async function obtenerClienteApi(
   cliente: Cliente;
   ventas: VentaResumen[];
   pagos: Pago[];
+  productosEntregados: ProductoEntregado[];
   saldo: number;
 }> {
   return apiRequest(`/admin/clientes/${id}`);

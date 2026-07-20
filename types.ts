@@ -69,6 +69,16 @@ export interface VentaResumen {
   totalImporte: number;
 }
 
+export interface ProductoEntregado {
+  id: number;
+  productoId: number;
+  productoNombre: string;
+  cantidad: number;
+  precio: number;
+  pedidoId: number;
+  fecha: string;
+}
+
 export type MetodoPago = "efectivo" | "transferencia" | "cheque";
 
 export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {

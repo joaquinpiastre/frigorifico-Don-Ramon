@@ -37,7 +37,7 @@ const CONDICIONES: CondicionIva[] = [
   "consumidor_final",
 ];
 
-export default function ClienteDetalleRepartidor() {
+export default function ClienteDetalleOperador() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const clienteId = Number(id);
 

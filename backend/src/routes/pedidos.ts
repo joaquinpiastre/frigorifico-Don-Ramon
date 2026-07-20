@@ -140,6 +140,141 @@ pedidosRouter.get("/pedidos/:id", requireAuth, async (req, res) => {
   res.json({ pedido: pedidoResult.rows[0], items: items.rows });
 });
 
+const editarPedidoSchema = z.object({
+  repartidor: z.string().trim().min(1).optional(),
+  items: z.array(itemSchema).min(1),
+});
+
+// PATCH /pedidos/:id — edita cliente asignado/ítems de un pedido aún no armado
+pedidosRouter.patch(
+  "/pedidos/:id",
+  requireAuth,
+  requireRol("operador", "admin"),
+  async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Id inválido." });
+      return;
+    }
+    const parsed = editarPedidoSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
+      return;
+    }
+    const { repartidor, items } = parsed.data;
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const { rows } = await client.query(
+        "select estado from pedidos where id = $1 for update",
+        [id],
+      );
+      if (rows.length === 0) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "Pedido no encontrado." });
+        return;
+      }
+      if (rows[0].estado !== "pendiente") {
+        await client.query("ROLLBACK");
+        res.status(409).json({
+          error:
+            'Solo se puede editar un pedido en estado "pendiente" (aún no armado).',
+        });
+        return;
+      }
+
+      if (repartidor) {
+        await client.query("update pedidos set repartidor = $2 where id = $1", [
+          id,
+          repartidor,
+        ]);
+      }
+
+      await client.query("delete from pedido_items where pedido_id = $1", [id]);
+      for (const item of items) {
+        await client.query(
+          `insert into pedido_items (pedido_id, producto_id, res_id, cantidad, precio, garron, tropa, nota)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            id,
+            item.productoId,
+            item.resId ?? null,
+            item.cantidad,
+            item.precio,
+            item.garron ?? null,
+            item.tropa ?? null,
+            item.nota ?? null,
+          ],
+        );
+      }
+
+      await client.query("COMMIT");
+      res.json({ ok: true });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      const message =
+        err instanceof Error ? err.message : "Error al editar el pedido.";
+      res.status(500).json({ error: message });
+    } finally {
+      client.release();
+    }
+  },
+);
+
+// DELETE /pedidos/:id — elimina un pedido aún no armado (ej. se canceló, se cargó mal)
+pedidosRouter.delete(
+  "/pedidos/:id",
+  requireAuth,
+  requireRol("operador", "admin"),
+  async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Id inválido." });
+      return;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const { rows } = await client.query(
+        "select estado from pedidos where id = $1 for update",
+        [id],
+      );
+      if (rows.length === 0) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "Pedido no encontrado." });
+        return;
+      }
+      if (rows[0].estado !== "pendiente") {
+        await client.query("ROLLBACK");
+        res.status(409).json({
+          error:
+            'Solo se puede eliminar un pedido en estado "pendiente" (aún no armado).',
+        });
+        return;
+      }
+
+      await client.query("delete from pedido_items where pedido_id = $1", [id]);
+      await client.query("delete from pedidos where id = $1", [id]);
+
+      await client.query("COMMIT");
+      res.json({ ok: true });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      const message =
+        err instanceof Error ? err.message : "Error al eliminar el pedido.";
+      res.status(500).json({ error: message });
+    } finally {
+      client.release();
+    }
+  },
+);
+
 async function descontarStockItem(
   client: PoolClient,
   item: { productoId: number; resId: number | null; cantidad: number },

@@ -22,6 +22,12 @@ export default function RepartidorHome() {
         onPress={() => router.push('/(repartidor)/clientes')}
       />
       <Button
+        label="MAPA EN VIVO"
+        variant="secondary"
+        iconLeft={<Ionicons name="map-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(repartidor)/mapa')}
+      />
+      <Button
         label="CERRAR SESIÓN"
         variant="danger"
         iconLeft={<Ionicons name="log-out-outline" size={18} color={COLORS.blanco} />}

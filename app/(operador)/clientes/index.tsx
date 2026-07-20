@@ -13,7 +13,7 @@ import { coincideBusqueda } from '@/utils/busqueda';
 
 const CONDICIONES: CondicionIva[] = ['responsable_inscripto', 'monotributo', 'exento', 'consumidor_final'];
 
-export default function ClientesRepartidor() {
+export default function ClientesOperador() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [creando, setCreando] = useState(false);
   const [numeroCliente, setNumeroCliente] = useState('');
@@ -116,7 +116,7 @@ export default function ClientesRepartidor() {
           </Text>
         ) : (
           clientesFiltrados.map((c) => (
-            <Pressable key={c.id} style={styles.card} onPress={() => router.push(`/(repartidor)/clientes/${c.id}`)}>
+            <Pressable key={c.id} style={styles.card} onPress={() => router.push(`/(operador)/clientes/${c.id}`)}>
               <Text style={styles.nombre}>
                 #{c.numeroCliente} · {c.nombre}
               </Text>

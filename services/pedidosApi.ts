@@ -62,3 +62,28 @@ export async function repesarItemApi(
     body: JSON.stringify({ cantidad }),
   });
 }
+
+export async function editarPedidoApi(
+  id: number,
+  input: {
+    repartidor?: string;
+    items: {
+      productoId: number;
+      cantidad: number;
+      precio: number;
+      garron?: string;
+      tropa?: string;
+      nota?: string;
+      resId?: number;
+    }[];
+  },
+): Promise<void> {
+  await apiRequest(`/pedidos/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function eliminarPedidoApi(id: number): Promise<void> {
+  await apiRequest(`/pedidos/${id}`, { method: "DELETE" });
+}
