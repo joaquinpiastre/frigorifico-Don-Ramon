@@ -191,7 +191,9 @@ export default function RecepcionRapida() {
     setTimeout(() => tropaRef.current?.focus(), 50);
   };
 
-  const necesitaTropa = tipo === "vacuno" && !loteSeleccionado;
+  // La tropa es un dato opcional que sirve para agrupar reses de vaca bajo un mismo lote;
+  // nunca bloquea el guardado, así se pueden cargar muchas reses seguidas sin frenos.
+  const mostrarTropaOpcional = tipo === "vacuno" && !loteSeleccionado;
 
   const limpiarFlujoCodigo = () => {
     setCodigo("");
@@ -209,10 +211,6 @@ export default function RecepcionRapida() {
   const guardarRes = async () => {
     const kilosNum = Number(kilos.replace(",", "."));
     if (!altaPendiente || !kilosNum || kilosNum <= 0 || guardandoRes) return;
-    if (necesitaTropa) {
-      setMensajeCodigo("Confirmá el número de tropa antes de guardar.");
-      return;
-    }
     setGuardandoRes(true);
     try {
       const res = await crearResApi({
@@ -342,10 +340,26 @@ export default function RecepcionRapida() {
                 ))}
               </View>
 
-              {necesitaTropa ? (
+              <Input
+                ref={kilosRef}
+                label="Kilos"
+                value={kilos}
+                onChangeText={setKilos}
+                keyboardType="decimal-pad"
+                onSubmitEditing={() => void guardarRes()}
+                returnKeyType="done"
+                autoFocus
+              />
+              <Input
+                label="Garrón (opcional)"
+                value={garron}
+                onChangeText={setGarron}
+              />
+
+              {mostrarTropaOpcional ? (
                 <>
                   <Text style={styles.tipoLabel}>
-                    Es una res de vaca: indicá el número de tropa
+                    Número de tropa (opcional)
                   </Text>
                   <Input
                     ref={tropaRef}
@@ -360,35 +374,19 @@ export default function RecepcionRapida() {
                     <Text style={styles.mensaje}>{mensajeTropa}</Text>
                   ) : null}
                   <Button
-                    label="CONFIRMAR TROPA"
+                    label="USAR ESTA TROPA"
+                    variant="secondary"
                     loading={buscandoTropa}
                     onPress={() => void confirmarTropa()}
                   />
                 </>
-              ) : (
-                <>
-                  <Input
-                    ref={kilosRef}
-                    label="Kilos"
-                    value={kilos}
-                    onChangeText={setKilos}
-                    keyboardType="decimal-pad"
-                    onSubmitEditing={() => void guardarRes()}
-                    returnKeyType="done"
-                    autoFocus
-                  />
-                  <Input
-                    label="Garrón (opcional)"
-                    value={garron}
-                    onChangeText={setGarron}
-                  />
-                  <Button
-                    label="GUARDAR"
-                    loading={guardandoRes}
-                    onPress={() => void guardarRes()}
-                  />
-                </>
-              )}
+              ) : null}
+
+              <Button
+                label="GUARDAR"
+                loading={guardandoRes}
+                onPress={() => void guardarRes()}
+              />
               <Button
                 label="CANCELAR"
                 variant="secondary"
