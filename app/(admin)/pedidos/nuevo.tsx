@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
-import { showAlert } from "@/utils/alert";
+import { showAlert, showConfirm } from "@/utils/alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
@@ -31,6 +31,13 @@ interface Linea {
   resId?: number;
   cor?: string;
   sinStock?: boolean;
+  sinStockSuficiente?: boolean;
+}
+
+// Lo que realmente queda libre: lo que hay en stock menos lo que otros pedidos
+// pendientes (aún sin armar) ya tienen anotado sobre esa misma res/producto.
+function disponibleReal(cantidadTotal: number, reservado: number): number {
+  return Math.max(0, cantidadTotal - reservado);
 }
 
 // Para que "carne de res", "vaca" o "novillo" encuentren el producto "Carne vacuna", etc.
@@ -152,7 +159,7 @@ export default function NuevoPedido() {
     setCor(res.cor);
     setGarron(res.garron ?? "");
     setTropa(lotesPorId.get(res.loteId)?.numeroTropa ?? "");
-    setCantidad(String(res.kilosDisponibles));
+    setCantidad(String(disponibleReal(res.kilosDisponibles, res.reservado)));
   };
 
   const quitarResSeleccionada = () => {
@@ -163,11 +170,25 @@ export default function NuevoPedido() {
     setCantidad("");
   };
 
+  const resDisponibleReal = resSeleccionada
+    ? disponibleReal(resSeleccionada.kilosDisponibles, resSeleccionada.reservado)
+    : 0;
   const cantidadExcedeStock =
     resSeleccionada !== null &&
-    Number(cantidad.replace(",", ".")) > resSeleccionada.kilosDisponibles;
+    Number(cantidad.replace(",", ".")) > resDisponibleReal;
 
-  const agregarLinea = () => {
+  const productoDisponibleReal =
+    productoSeleccionado && !productoSeleccionado.tieneCodigoBarra
+      ? disponibleReal(
+          productoSeleccionado.stockDisponible,
+          productoSeleccionado.reservado,
+        )
+      : null;
+  const cantidadExcedeStockProducto =
+    productoDisponibleReal !== null &&
+    Number(cantidad.replace(",", ".")) > productoDisponibleReal;
+
+  const agregarLinea = async () => {
     if (!productoSeleccionado) return;
     const cantidadNum = Number(cantidad.replace(",", "."));
     const precioNum = Number(precio.replace(",", "."));
@@ -175,12 +196,26 @@ export default function NuevoPedido() {
       showAlert("Pedido", "Completá cantidad y precio.");
       return;
     }
-    if (resSeleccionada && cantidadNum > resSeleccionada.kilosDisponibles) {
-      showAlert(
-        "Pedido",
-        `Esa Cor solo tiene ${resSeleccionada.kilosDisponibles} kg disponibles.`,
+
+    let sinStockSuficiente = false;
+    const disponible = resSeleccionada
+      ? resDisponibleReal
+      : productoDisponibleReal;
+    const reservadoDe = resSeleccionada
+      ? resSeleccionada.reservado
+      : productoSeleccionado.reservado;
+    if (disponible !== null && cantidadNum > disponible) {
+      const faltante = cantidadNum - disponible;
+      const avisoReserva =
+        reservadoDe > 0
+          ? ` (${reservadoDe} ya está anotado en otro pedido pendiente)`
+          : "";
+      const confirmado = await showConfirm(
+        "Sin stock suficiente",
+        `${productoSeleccionado.nombre}: disponible ${disponible}, faltan ${faltante}${avisoReserva}. ¿Agregarlo igual al pedido?`,
       );
-      return;
+      if (!confirmado) return;
+      sinStockSuficiente = true;
     }
 
     setLineas((prev) => [
@@ -196,6 +231,7 @@ export default function NuevoPedido() {
         resId: resSeleccionada?.id,
         cor: resSeleccionada?.cor ?? (cor.trim() || undefined),
         sinStock: productoSeleccionado.tieneCodigoBarra && !resSeleccionada,
+        sinStockSuficiente,
       },
     ]);
     cancelarSeleccionProducto();
@@ -344,7 +380,10 @@ export default function NuevoPedido() {
                           {item.garron ? ` · Garrón ${item.garron}` : ""}
                         </Text>
                         <Text style={styles.sub}>
-                          {item.kilosDisponibles} kg disponibles
+                          {disponibleReal(item.kilosDisponibles, item.reservado)} kg disponibles
+                          {item.reservado > 0
+                            ? ` (${item.reservado} kg ya reservados en otro pedido)`
+                            : ""}
                           {item.clasificacion ? ` · ${item.clasificacion}` : ""}
                         </Text>
                       </Pressable>
@@ -386,8 +425,25 @@ export default function NuevoPedido() {
             {resSeleccionada ? (
               <Text style={cantidadExcedeStock ? styles.aviso : styles.sub}>
                 {cantidadExcedeStock
-                  ? `⚠️ Esa Cor solo tiene ${resSeleccionada.kilosDisponibles} kg disponibles.`
-                  : `Disponible: ${resSeleccionada.kilosDisponibles} kg. Si vendés menos, el resto queda en stock (ej: media res).`}
+                  ? `⚠️ Disponible real: ${resDisponibleReal} kg${
+                      resSeleccionada.reservado > 0
+                        ? ` (${resSeleccionada.reservado} kg ya está anotado en otro pedido pendiente)`
+                        : ""
+                    }.`
+                  : `Disponible: ${resDisponibleReal} kg. Si vendés menos, el resto queda en stock (ej: media res).`}
+              </Text>
+            ) : null}
+            {productoDisponibleReal !== null ? (
+              <Text
+                style={cantidadExcedeStockProducto ? styles.aviso : styles.sub}
+              >
+                {cantidadExcedeStockProducto
+                  ? `⚠️ Disponible real: ${productoDisponibleReal} ${productoSeleccionado.unidad}${
+                      productoSeleccionado.reservado > 0
+                        ? ` (${productoSeleccionado.reservado} ya está anotado en otro pedido pendiente)`
+                        : ""
+                    }.`
+                  : `Disponible: ${productoDisponibleReal} ${productoSeleccionado.unidad}.`}
               </Text>
             ) : null}
             <Input
@@ -424,7 +480,7 @@ export default function NuevoPedido() {
               </Text>
             ) : null}
 
-            <Button label="AGREGAR LÍNEA" onPress={agregarLinea} />
+            <Button label="AGREGAR LÍNEA" onPress={() => void agregarLinea()} />
             <Button
               label="CANCELAR"
               variant="secondary"
@@ -458,7 +514,15 @@ export default function NuevoPedido() {
                       }{" "}
                       unidad(es) en stock
                     </Text>
-                  ) : null}
+                  ) : (
+                    <Text style={styles.sub}>
+                      {disponibleReal(item.stockDisponible, item.reservado)}{" "}
+                      {item.unidad} disponibles
+                      {item.reservado > 0
+                        ? ` (${item.reservado} ya reservados en otro pedido)`
+                        : ""}
+                    </Text>
+                  )}
                 </Pressable>
               )}
             />
@@ -485,6 +549,11 @@ export default function NuevoPedido() {
               {l.nota ? <Text style={styles.sub}>📝 {l.nota}</Text> : null}
               {l.sinStock ? (
                 <Text style={styles.aviso}>⚠️ Sin stock vinculado</Text>
+              ) : null}
+              {l.sinStockSuficiente ? (
+                <Text style={styles.aviso}>
+                  ⚠️ Agregada sin stock suficiente
+                </Text>
               ) : null}
             </View>
           ))}

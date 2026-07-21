@@ -37,6 +37,8 @@ export interface Res {
   kilosIngreso: number;
   kilosDisponibles: number;
   estado: EstadoRes;
+  /** Kilos de esta res ya anotados en otros pedidos aún pendientes (sin armar). */
+  reservado: number;
 }
 
 export type CondicionIva =
@@ -311,6 +313,10 @@ export interface Producto {
   tieneCodigoBarra: boolean;
   unidad: UnidadProducto;
   activo: boolean;
+  /** Solo relevante para productos sin código de barras (stock por cantidad, no por res). */
+  stockDisponible: number;
+  /** Cantidad ya anotada en otros pedidos aún pendientes (sin armar). */
+  reservado: number;
 }
 
 export interface ItemStock {

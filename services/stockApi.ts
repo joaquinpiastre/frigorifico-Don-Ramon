@@ -73,12 +73,15 @@ export async function listarResesApi(filtros?: {
   q?: string;
   loteId?: number;
   limit?: number;
+  excluirPedidoId?: number;
 }): Promise<Res[]> {
   const params = new URLSearchParams();
   if (filtros?.estado) params.set("estado", filtros.estado);
   if (filtros?.q) params.set("q", filtros.q);
   if (filtros?.loteId) params.set("loteId", String(filtros.loteId));
   if (filtros?.limit) params.set("limit", String(filtros.limit));
+  if (filtros?.excluirPedidoId)
+    params.set("excluirPedidoId", String(filtros.excluirPedidoId));
   const query = params.toString() ? `?${params.toString()}` : "";
   const data = await apiRequest<{ reses: Res[] }>(`/admin/reses${query}`);
   return data.reses;

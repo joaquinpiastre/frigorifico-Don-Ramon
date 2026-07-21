@@ -4,10 +4,13 @@ import { apiRequest } from "./apiClient";
 export async function listarProductosApi(filtros?: {
   q?: string;
   incluirInactivos?: boolean;
+  excluirPedidoId?: number;
 }): Promise<Producto[]> {
   const params = new URLSearchParams();
   if (filtros?.q) params.set("q", filtros.q);
   if (filtros?.incluirInactivos) params.set("incluirInactivos", "true");
+  if (filtros?.excluirPedidoId)
+    params.set("excluirPedidoId", String(filtros.excluirPedidoId));
   const query = params.toString() ? `?${params.toString()}` : "";
   const data = await apiRequest<{ productos: Producto[] }>(
     `/productos${query}`,

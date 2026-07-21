@@ -166,7 +166,9 @@ resesRouter.post(
   },
 );
 
-// GET /admin/reses?estado=en_stock&q=texto&loteId=1 — listado de reses, filtrable y paginado para soportar grandes volúmenes
+// GET /admin/reses?estado=en_stock&q=texto&loteId=1&excluirPedidoId=1 — listado de reses, filtrable y paginado
+// para soportar grandes volúmenes. Incluye "reservado": lo que otros pedidos aún pendientes (sin armar)
+// ya tienen anotado sobre esa res, para que el frontend no ofrezca como disponible algo ya comprometido.
 resesRouter.get("/admin/reses", requireAuth, async (req, res) => {
   const estado =
     typeof req.query.estado === "string" ? req.query.estado : undefined;
@@ -176,18 +178,30 @@ resesRouter.get("/admin/reses", requireAuth, async (req, res) => {
       : undefined;
   const loteId =
     typeof req.query.loteId === "string" ? Number(req.query.loteId) : undefined;
+  const excluirPedidoId =
+    typeof req.query.excluirPedidoId === "string"
+      ? Number(req.query.excluirPedidoId)
+      : undefined;
   const limite = Math.min(Number(req.query.limit) || 100, 500);
 
   const { rows } = await pool.query(
-    `select id, lote_id as "loteId", cor, garron, tipo, clasificacion,
-            kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
-     from reses
-     where ($1::text is null or estado = $1)
-       and ($2::text is null or cor ilike $2 or garron ilike $2 or clasificacion ilike $2 or tipo ilike $2)
-       and ($3::int is null or lote_id = $3)
-     order by created_at desc
+    `select r.id, r.lote_id as "loteId", r.cor, r.garron, r.tipo, r.clasificacion,
+            r.kilos_ingreso as "kilosIngreso", r.kilos_disponibles as "kilosDisponibles", r.estado,
+            coalesce(reservas.cantidad, 0) as "reservado"
+     from reses r
+     left join (
+       select pi.res_id, sum(pi.cantidad) as cantidad
+       from pedido_items pi
+       join pedidos p on p.id = pi.pedido_id
+       where p.estado = 'pendiente' and ($5::int is null or p.id <> $5)
+       group by pi.res_id
+     ) reservas on reservas.res_id = r.id
+     where ($1::text is null or r.estado = $1)
+       and ($2::text is null or r.cor ilike $2 or r.garron ilike $2 or r.clasificacion ilike $2 or r.tipo ilike $2)
+       and ($3::int is null or r.lote_id = $3)
+     order by r.created_at desc
      limit $4`,
-    [estado ?? null, q ?? null, loteId ?? null, limite],
+    [estado ?? null, q ?? null, loteId ?? null, limite, excluirPedidoId ?? null],
   );
   res.json({ reses: rows });
 });

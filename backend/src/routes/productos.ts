@@ -8,20 +8,42 @@ export const productosRouter = Router();
 const CATEGORIAS = ["vacuno", "cerdo", "toro", "embutido", "otro"] as const;
 const UNIDADES = ["kg", "unidad"] as const;
 
-// GET /productos?q=texto&incluirInactivos=true — listado/búsqueda para el autocomplete del operador
-// y el CRUD del admin (que necesita ver también los desactivados para poder reactivarlos o editarlos)
+// GET /productos?q=texto&incluirInactivos=true&excluirPedidoId=1 — listado/búsqueda para el autocomplete
+// del operador y el CRUD del admin (que necesita ver también los desactivados para poder reactivarlos o
+// editarlos). Para productos sin código de barras incluye "stockDisponible" (suma de items_stock) y
+// "reservado" (lo que otros pedidos aún pendientes ya tienen anotado), para no ofrecer como libre algo
+// que ya está comprometido en otro pedido.
 productosRouter.get("/productos", requireAuth, async (req, res) => {
   const q =
     typeof req.query.q === "string" && req.query.q.trim()
       ? `%${req.query.q.trim()}%`
       : undefined;
   const incluirInactivos = req.query.incluirInactivos === "true";
+  const excluirPedidoId =
+    typeof req.query.excluirPedidoId === "string"
+      ? Number(req.query.excluirPedidoId)
+      : undefined;
   const { rows } = await pool.query(
-    `select id, nombre, categoria, tiene_codigo_barra as "tieneCodigoBarra", unidad, activo
-     from productos
-     where ($1::boolean or activo = true) and ($2::text is null or nombre ilike $2)
-     order by nombre`,
-    [incluirInactivos, q ?? null],
+    `select p.id, p.nombre, p.categoria, p.tiene_codigo_barra as "tieneCodigoBarra", p.unidad, p.activo,
+            coalesce(stock.disponible, 0) as "stockDisponible",
+            coalesce(reservas.cantidad, 0) as "reservado"
+     from productos p
+     left join (
+       select producto_id, sum(cantidad_disponible) as disponible
+       from items_stock
+       group by producto_id
+     ) stock on stock.producto_id = p.id
+     left join (
+       select pi.producto_id, sum(pi.cantidad) as cantidad
+       from pedido_items pi
+       join pedidos ped on ped.id = pi.pedido_id
+       where ped.estado = 'pendiente' and pi.res_id is null
+         and ($3::int is null or ped.id <> $3)
+       group by pi.producto_id
+     ) reservas on reservas.producto_id = p.id
+     where ($1::boolean or p.activo = true) and ($2::text is null or p.nombre ilike $2)
+     order by p.nombre`,
+    [incluirInactivos, q ?? null, excluirPedidoId ?? null],
   );
   res.json({ productos: rows });
 });
