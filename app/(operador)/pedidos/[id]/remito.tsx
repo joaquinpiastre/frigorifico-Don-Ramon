@@ -26,13 +26,7 @@ function partesFecha(fechaIso: string): { dd: string; mm: string; yyyy: string }
 function construirFilas(pedido: PedidoDetalle): string {
   const filas = pedido.items
     .map((item) => {
-      const trazabilidad = [
-        item.cor ? `Cor ${item.cor}` : null,
-        item.garron ? `Garrón ${item.garron}` : null,
-        item.tropa ? `Tropa ${item.tropa}` : null,
-      ]
-        .filter(Boolean)
-        .join(' · ');
+      const trazabilidad = item.garron ? `Garrón ${item.garron}` : '';
       return `
         <tr>
           <td class="num">${item.cantidad}</td>
@@ -128,11 +122,11 @@ function construirHtml(pedido: PedidoDetalle, logoBase64: string): string {
         .leyenda {
           position: absolute; top: -6px; right: 0;
           font-size: 10px; letter-spacing: 2px; font-weight: bold;
-          color: #8C6D2F; border: 1.5px solid #8C6D2F; padding: 2px 10px; border-radius: 6px;
+          color: #000; border: 1.5px solid #000; padding: 2px 10px; border-radius: 6px;
         }
         .headerTable { width: 100%; border-collapse: collapse; margin-top: 16px; }
         .logoCell { width: 66px; }
-        .logo { width: 58px; height: 58px; object-fit: contain; border-radius: 50%; border: 1px solid #C9A24B; }
+        .logo { width: 58px; height: 58px; object-fit: contain; border-radius: 50%; border: 1px solid #000; filter: grayscale(100%); }
         .empresaCell { padding-left: 10px; vertical-align: middle; }
         .empresaLinea { margin: 0; font-weight: bold; font-size: 13px; letter-spacing: 0.5px; }
         .notaCell { text-align: right; vertical-align: top; }
@@ -140,25 +134,25 @@ function construirHtml(pedido: PedidoDetalle, logoBase64: string): string {
         .notaCampo { margin: 2px 0; font-size: 12px; }
         .notaValor { font-weight: bold; }
         .fechaBoxes { display: flex; justify-content: flex-end; gap: 4px; }
-        .fechaBox { display: inline-block; width: 32px; text-align: center; border: 1px solid #000; background: #FBD7C4; padding: 3px 0; font-size: 12px; }
+        .fechaBox { display: inline-block; width: 32px; text-align: center; border: 1px solid #000; background: #fff; padding: 3px 0; font-size: 12px; }
         .direccion { text-align: center; font-size: 12px; margin: 8px 0 4px; }
         .divisoria { border: none; border-top: 1.5px solid #000; margin: 4px 0 10px; }
         .campo { display: flex; gap: 6px; align-items: baseline; border-bottom: 1px dotted #999; padding: 3px 2px; margin-bottom: 4px; }
         .campoLabel { font-weight: bold; font-size: 12px; white-space: nowrap; }
-        .campoValor { font-size: 12px; background: #FBD7C4; flex: 1; padding: 2px 6px; }
-        .campoValorChico { font-size: 12px; background: #FBD7C4; padding: 2px 8px; }
+        .campoValor { font-size: 12px; background: #f2f2f2; flex: 1; padding: 2px 6px; }
+        .campoValorChico { font-size: 12px; background: #f2f2f2; padding: 2px 8px; }
         .condiciones { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
         .checkboxGroup { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
-        .checkbox { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; background: #FBD7C4; }
+        .checkbox { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; background: #fff; }
         .itemsTable { width: 100%; border-collapse: collapse; margin-top: 4px; }
-        .itemsTable th { border: 1px solid #000; background: #15120F; color: #C9A24B; padding: 6px; font-size: 11px; }
-        .itemsTable td { border: 1px solid #b98a6f; background: #FCE2D3; padding: 5px 6px; font-size: 11px; height: 17px; }
+        .itemsTable th { border: 1px solid #000; background: #000; color: #fff; padding: 6px; font-size: 11px; }
+        .itemsTable td { border: 1px solid #000; background: #fff; padding: 5px 6px; font-size: 11px; height: 17px; }
         .itemsTable td.num { text-align: right; width: 15%; }
         .itemsTable td.desc { text-align: left; }
-        .trazabilidad { font-size: 10px; color: #6b5646; margin-top: 2px; }
+        .trazabilidad { font-size: 10px; color: #555; margin-top: 2px; }
         .totalRow { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 8px; }
         .totalLabel { font-weight: bold; font-size: 15px; }
-        .totalValor { border: 1px solid #000; background: #FBD7C4; padding: 5px 16px; font-weight: bold; font-size: 15px; min-width: 100px; text-align: right; }
+        .totalValor { border: 1px solid #000; background: #f2f2f2; padding: 5px 16px; font-weight: bold; font-size: 15px; min-width: 100px; text-align: right; }
         .firma { margin-top: 46px; text-align: center; }
         .firmaLinea { border-top: 1px solid #000; width: 260px; margin: 0 auto 4px; }
         .firmaTexto { font-size: 11px; letter-spacing: 1px; margin: 0; }
