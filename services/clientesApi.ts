@@ -59,6 +59,10 @@ export async function obtenerClienteApi(
   return apiRequest(`/admin/clientes/${id}`);
 }
 
+export async function eliminarClienteApi(id: number): Promise<void> {
+  await apiRequest(`/admin/clientes/${id}`, { method: "DELETE" });
+}
+
 export async function registrarPagoApi(input: {
   clienteId: number;
   ventaId?: number;

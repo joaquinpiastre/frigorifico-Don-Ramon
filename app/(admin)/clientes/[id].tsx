@@ -8,13 +8,17 @@ import {
   Text,
   View,
 } from "react-native";
-import { showAlert } from "@/utils/alert";
+import { showAlert, showConfirm } from "@/utils/alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { MetodoPagoSelector } from "@/components/ui/MetodoPagoSelector";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
-import { obtenerClienteApi, registrarPagoApi } from "@/services/clientesApi";
+import {
+  eliminarClienteApi,
+  obtenerClienteApi,
+  registrarPagoApi,
+} from "@/services/clientesApi";
 import {
   CONDICION_IVA_LABEL,
   METODO_PAGO_LABEL,
@@ -44,6 +48,7 @@ export default function ClienteDetalle() {
   const [numeroCheque, setNumeroCheque] = useState("");
   const [banco, setBanco] = useState("");
   const [registrandoPago, setRegistrandoPago] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -111,6 +116,27 @@ export default function ClienteDetalle() {
       );
     } finally {
       setRegistrandoPago(false);
+    }
+  };
+
+  const eliminarCliente = async () => {
+    if (!cliente) return;
+    const confirmado = await showConfirm(
+      "Eliminar cliente",
+      `¿Eliminar a ${cliente.nombre}? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    setEliminando(true);
+    try {
+      await eliminarClienteApi(cliente.id);
+      router.replace("/(admin)/clientes");
+    } catch (e) {
+      showAlert(
+        "Cliente",
+        e instanceof Error ? e.message : "No se pudo eliminar el cliente.",
+      );
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -277,6 +303,13 @@ export default function ClienteDetalle() {
           </View>
         ))
       )}
+
+      <Button
+        label="ELIMINAR CLIENTE"
+        variant="danger"
+        loading={eliminando}
+        onPress={() => void eliminarCliente()}
+      />
     </Screen>
   );
 }

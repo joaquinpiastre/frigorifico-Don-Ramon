@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth, type AuthClaims } from "../auth.js";
+import { requireAuth, requireRol, type AuthClaims } from "../auth.js";
 import { pool } from "../db/client.js";
 
 export const clientesRouter = Router();
@@ -167,6 +167,40 @@ clientesRouter.get("/admin/clientes/:id", requireAuth, async (req, res) => {
     saldo: totalVentas - totalPagos,
   });
 });
+
+// DELETE /admin/clientes/:id — elimina un cliente (solo si no tiene pedidos, ventas o pagos asociados)
+clientesRouter.delete(
+  "/admin/clientes/:id",
+  requireAuth,
+  requireRol("admin"),
+  async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Id inválido." });
+      return;
+    }
+    try {
+      const { rows } = await pool.query(
+        "delete from clientes where id = $1 returning id",
+        [id],
+      );
+      if (rows.length === 0) {
+        res.status(404).json({ error: "Cliente no encontrado." });
+        return;
+      }
+      res.json({ ok: true });
+    } catch (err) {
+      if ((err as { code?: string }).code === "23503") {
+        res.status(409).json({
+          error:
+            "No se puede eliminar: este cliente ya tiene pedidos, ventas o pagos asociados. Desactivalo en su lugar.",
+        });
+        return;
+      }
+      throw err;
+    }
+  },
+);
 
 const actualizarClienteSchema = z.object({
   nombre: z.string().trim().min(1).optional(),
