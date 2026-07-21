@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
@@ -316,13 +316,27 @@ export default function ClienteDetalleOperador() {
         <Text style={styles.vacio}>Todavía no tiene compras registradas.</Text>
       ) : (
         ventas.map((v) => (
-          <View key={v.id} style={styles.card}>
+          <Pressable
+            key={`${v.origen}-${v.id}`}
+            style={styles.card}
+            onPress={() =>
+              v.origen === "pedido"
+                ? router.push(`/(operador)/pedidos/${v.id}/remito`)
+                : showAlert(
+                    "Remito",
+                    "Este remito es de un registro antiguo y no se puede ver desde acá.",
+                  )
+            }
+          >
             <Text style={styles.nombre}>Remito N° {v.numeroRemito}</Text>
             <Text style={styles.label}>
               {new Date(v.fecha).toLocaleDateString("es-AR")}
             </Text>
             <Text style={styles.importe}>${v.totalImporte.toFixed(2)}</Text>
-          </View>
+            {v.origen === "pedido" ? (
+              <Text style={styles.verRemito}>Ver / descargar / compartir remito ›</Text>
+            ) : null}
+          </Pressable>
         ))
       )}
 
@@ -436,6 +450,12 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
     color: COLORS.doradoOscuro,
+  },
+  verRemito: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 11,
+    color: COLORS.dorado,
+    marginTop: 4,
   },
   saldo: {
     fontFamily: "Poppins_700Bold",

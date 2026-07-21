@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { showAlert } from '@/utils/alert';
+import { imprimirHtmlEnNuevaVentana } from '@/utils/imprimirHtml';
 import { obtenerLogoBase64 } from '@/utils/logo';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
@@ -192,7 +193,13 @@ export default function RemitoPedidoRepartidor() {
       const logoBase64 = await obtenerLogoBase64();
       const html = construirHtml(pedido, logoBase64);
       if (Platform.OS === 'web') {
-        await Print.printAsync({ html });
+        const abierto = imprimirHtmlEnNuevaVentana(html);
+        if (!abierto) {
+          showAlert(
+            'Remito',
+            'Habilitá las ventanas emergentes del navegador para generar el remito.',
+          );
+        }
         return;
       }
       const { uri } = await Print.printToFileAsync({ html, width: 595, height: 842 });

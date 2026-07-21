@@ -19,24 +19,33 @@ estadisticasRouter.get(
       ventasHoyPorCliente,
     ] = await Promise.all([
       pool.query<{ cantidad: string; total: string }>(
-        `select count(*) as cantidad, coalesce(sum(total_importe), 0) as total
-       from ventas where fecha::date = current_date`,
+        `select count(distinct p.id) as cantidad, coalesce(sum(pi.cantidad * pi.precio), 0) as total
+       from pedidos p
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado' and p.entregado_en::date = current_date`,
       ),
       pool.query<{ cantidad: string; total: string }>(
-        `select count(*) as cantidad, coalesce(sum(total_importe), 0) as total
-       from ventas where date_trunc('month', fecha) = date_trunc('month', now())`,
+        `select count(distinct p.id) as cantidad, coalesce(sum(pi.cantidad * pi.precio), 0) as total
+       from pedidos p
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado' and date_trunc('month', p.entregado_en) = date_trunc('month', now())`,
       ),
       pool.query<{ reses: string; kilos: string }>(
         `select count(*) as reses, coalesce(sum(kilos_disponibles), 0) as kilos
        from reses where estado = 'en_stock'`,
       ),
       pool.query<{ id: number; nombre: string; saldo: string }>(
-        `select c.id, c.nombre, coalesce(v.total, 0) - coalesce(p.total, 0) as saldo
+        `select c.id, c.nombre, coalesce(pe.total, 0) - coalesce(pg.total, 0) as saldo
        from clientes c
-       left join (select cliente_id, sum(total_importe) as total from ventas group by cliente_id) v
-         on v.cliente_id = c.id
-       left join (select cliente_id, sum(monto) as total from pagos group by cliente_id) p
-         on p.cliente_id = c.id`,
+       left join (
+         select ped.cliente_id, sum(pi.cantidad * pi.precio) as total
+         from pedidos ped
+         join pedido_items pi on pi.pedido_id = ped.id
+         where ped.estado = 'entregado'
+         group by ped.cliente_id
+       ) pe on pe.cliente_id = c.id
+       left join (select cliente_id, sum(monto) as total from pagos group by cliente_id) pg
+         on pg.cliente_id = c.id`,
       ),
       pool.query<{
         tipo: "venta" | "pago";
@@ -44,11 +53,15 @@ estadisticasRouter.get(
         monto: string;
         fecha: string;
       }>(
-        `select 'venta' as tipo, c.nombre as "clienteNombre", v.total_importe as monto, v.fecha
-       from ventas v join clientes c on c.id = v.cliente_id
+        `select 'venta' as tipo, c.nombre as "clienteNombre", sum(pi.cantidad * pi.precio) as monto, p.entregado_en as fecha
+       from pedidos p
+       join clientes c on c.id = p.cliente_id
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado'
+       group by p.id, c.nombre, p.entregado_en
        union all
-       select 'pago' as tipo, c.nombre as "clienteNombre", p.monto, p.fecha
-       from pagos p join clientes c on c.id = p.cliente_id
+       select 'pago' as tipo, c.nombre as "clienteNombre", pg.monto, pg.fecha
+       from pagos pg join clientes c on c.id = pg.cliente_id
        order by fecha desc
        limit 8`,
       ),
@@ -69,10 +82,11 @@ estadisticasRouter.get(
        order by piezas desc`,
       ),
       pool.query<{ id: number; nombre: string; monto: string }>(
-        `select c.id, c.nombre, sum(v.total_importe) as monto
-       from ventas v
-       join clientes c on c.id = v.cliente_id
-       where v.fecha::date = current_date
+        `select c.id, c.nombre, sum(pi.cantidad * pi.precio) as monto
+       from pedidos p
+       join clientes c on c.id = p.cliente_id
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado' and p.entregado_en::date = current_date
        group by c.id, c.nombre
        order by monto desc`,
       ),
@@ -142,19 +156,22 @@ estadisticasRouter.get(
       ventasPorDiaSemana,
     ] = await Promise.all([
       pool.query<{ fecha: string; cantidad: string; total: string }>(
-        `select fecha::date::text as fecha, count(*) as cantidad, coalesce(sum(total_importe), 0) as total
-       from ventas
-       where fecha >= current_date - interval '29 days'
-       group by fecha::date
-       order by fecha::date`,
+        `select p.entregado_en::date::text as fecha, count(distinct p.id) as cantidad,
+              coalesce(sum(pi.cantidad * pi.precio), 0) as total
+       from pedidos p
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado' and p.entregado_en >= current_date - interval '29 days'
+       group by p.entregado_en::date
+       order by p.entregado_en::date`,
       ),
       pool.query<{ mes: string; cantidad: string; total: string }>(
-        `select to_char(date_trunc('month', fecha), 'YYYY-MM') as mes,
-              count(*) as cantidad, coalesce(sum(total_importe), 0) as total
-       from ventas
-       where fecha >= date_trunc('month', now()) - interval '11 months'
-       group by date_trunc('month', fecha)
-       order by date_trunc('month', fecha)`,
+        `select to_char(date_trunc('month', p.entregado_en), 'YYYY-MM') as mes,
+              count(distinct p.id) as cantidad, coalesce(sum(pi.cantidad * pi.precio), 0) as total
+       from pedidos p
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado' and p.entregado_en >= date_trunc('month', now()) - interval '11 months'
+       group by date_trunc('month', p.entregado_en)
+       order by date_trunc('month', p.entregado_en)`,
       ),
       pool.query<{
         id: number;
@@ -162,8 +179,11 @@ estadisticasRouter.get(
         total: string;
         cantidad: string;
       }>(
-        `select c.id, c.nombre, sum(v.total_importe) as total, count(*) as cantidad
-       from ventas v join clientes c on c.id = v.cliente_id
+        `select c.id, c.nombre, sum(pi.cantidad * pi.precio) as total, count(distinct p.id) as cantidad
+       from pedidos p
+       join clientes c on c.id = p.cliente_id
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado'
        group by c.id, c.nombre
        order by total desc
        limit 10`,
@@ -174,10 +194,13 @@ estadisticasRouter.get(
         importe: string;
         piezas: string;
       }>(
-        `select descripcion, coalesce(sum(kilos), 0) as kilos,
-              coalesce(sum(importe), 0) as importe, count(*) as piezas
-       from venta_items
-       group by descripcion
+        `select pr.nombre as descripcion, coalesce(sum(pi.cantidad), 0) as kilos,
+              coalesce(sum(pi.cantidad * pi.precio), 0) as importe, count(*) as piezas
+       from pedido_items pi
+       join pedidos p on p.id = pi.pedido_id
+       join productos pr on pr.id = pi.producto_id
+       where p.estado = 'entregado'
+       group by pr.nombre
        order by importe desc
        limit 10`,
       ),
@@ -213,12 +236,26 @@ estadisticasRouter.get(
         ventasTotalHistorico: string;
       }>(
         `select
-         coalesce((select avg(total_importe) from ventas), 0) as "ticketPromedio",
-         coalesce((select sum(kilos) from venta_items vi join ventas v on v.id = vi.venta_id
-                   where date_trunc('month', v.fecha) = date_trunc('month', now())), 0) as "kilosVendidosMes",
-         coalesce((select count(distinct cliente_id) from ventas
-                   where date_trunc('month', fecha) = date_trunc('month', now())), 0) as "clientesActivosMes",
-         coalesce((select sum(total_importe) from ventas), 0) as "ventasTotalHistorico"`,
+         coalesce((
+           select avg(t.total) from (
+             select sum(pi.cantidad * pi.precio) as total
+             from pedidos p join pedido_items pi on pi.pedido_id = p.id
+             where p.estado = 'entregado'
+             group by p.id
+           ) t
+         ), 0) as "ticketPromedio",
+         coalesce((
+           select sum(pi.cantidad) from pedido_items pi join pedidos p on p.id = pi.pedido_id
+           where p.estado = 'entregado' and date_trunc('month', p.entregado_en) = date_trunc('month', now())
+         ), 0) as "kilosVendidosMes",
+         coalesce((
+           select count(distinct p.cliente_id) from pedidos p
+           where p.estado = 'entregado' and date_trunc('month', p.entregado_en) = date_trunc('month', now())
+         ), 0) as "clientesActivosMes",
+         coalesce((
+           select sum(pi.cantidad * pi.precio) from pedido_items pi join pedidos p on p.id = pi.pedido_id
+           where p.estado = 'entregado'
+         ), 0) as "ventasTotalHistorico"`,
       ),
       pool.query<{ mes: string; cantidad: string }>(
         `select to_char(date_trunc('month', created_at), 'YYYY-MM') as mes, count(*) as cantidad
@@ -228,16 +265,18 @@ estadisticasRouter.get(
        order by date_trunc('month', created_at)`,
       ),
       pool.query<{ total: string }>(
-        `select coalesce(sum(total_importe), 0) as total
-       from ventas
-       where date_trunc('month', fecha) = date_trunc('month', now()) - interval '1 month'`,
+        `select coalesce(sum(pi.cantidad * pi.precio), 0) as total
+       from pedido_items pi join pedidos p on p.id = pi.pedido_id
+       where p.estado = 'entregado'
+         and date_trunc('month', p.entregado_en) = date_trunc('month', now()) - interval '1 month'`,
       ),
       pool.query<{ diaSemana: number; cantidad: string; total: string }>(
-        `select extract(isodow from fecha)::int as "diaSemana",
-              count(*) as cantidad, coalesce(sum(total_importe), 0) as total
-       from ventas
-       where fecha >= current_date - interval '89 days'
-       group by extract(isodow from fecha)
+        `select extract(isodow from p.entregado_en)::int as "diaSemana",
+              count(distinct p.id) as cantidad, coalesce(sum(pi.cantidad * pi.precio), 0) as total
+       from pedidos p
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado' and p.entregado_en >= current_date - interval '89 days'
+       group by extract(isodow from p.entregado_en)
        order by "diaSemana"`,
       ),
     ]);

@@ -69,6 +69,8 @@ export interface VentaResumen {
   numeroRemito: number;
   fecha: string;
   totalImporte: number;
+  /** "pedido" cuando sale del circuito real (pedidos entregados); "venta" es el circuito viejo. */
+  origen: "pedido" | "venta";
 }
 
 export interface ProductoEntregado {
@@ -241,6 +243,7 @@ export interface HistorialVenta {
   clienteNombre: string;
   totalImporte: number;
   fecha: string;
+  origen: "pedido" | "venta";
 }
 
 export interface HistorialPedido {

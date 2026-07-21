@@ -25,10 +25,13 @@ historialRouter.get(
 
     const [ventas, pedidos, pagos] = await Promise.all([
       pool.query<{ fecha: string; cantidad: string; total: string }>(
-        `select fecha::date::text as fecha, count(*) as cantidad, coalesce(sum(total_importe), 0) as total
-       from ventas
-       where fecha >= $1::date and fecha < $1::date + interval '1 month'
-       group by fecha::date`,
+        `select p.entregado_en::date::text as fecha, count(distinct p.id) as cantidad,
+              coalesce(sum(pi.cantidad * pi.precio), 0) as total
+       from pedidos p
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.estado = 'entregado'
+         and p.entregado_en >= $1::date and p.entregado_en < $1::date + interval '1 month'
+       group by p.entregado_en::date`,
         [inicio],
       ),
       pool.query<{ fecha: string; cantidad: string }>(
@@ -114,13 +117,27 @@ historialRouter.get(
           clienteNombre: string;
           totalImporte: string;
           fecha: string;
+          origen: "pedido" | "venta";
         }>(
-          `select v.id, v.numero_remito as "numeroRemito", c.nombre as "clienteNombre",
-              v.total_importe as "totalImporte", v.fecha
-       from ventas v
-       join clientes c on c.id = v.cliente_id
-       where v.fecha::date = $1::date
-       order by v.fecha desc`,
+          `select id, "numeroRemito", "clienteNombre", "totalImporte", fecha, origen from (
+             select p.id, p.numero_remito as "numeroRemito", c.nombre as "clienteNombre",
+                    coalesce(sum(pi.cantidad * pi.precio), 0) as "totalImporte", p.entregado_en as fecha,
+                    'pedido' as origen
+             from pedidos p
+             join clientes c on c.id = p.cliente_id
+             join pedido_items pi on pi.pedido_id = p.id
+             where p.estado = 'entregado' and p.entregado_en::date = $1::date
+             group by p.id, p.numero_remito, c.nombre, p.entregado_en
+
+             union all
+
+             select v.id, v.numero_remito as "numeroRemito", c.nombre as "clienteNombre",
+                    v.total_importe as "totalImporte", v.fecha, 'venta' as origen
+             from ventas v
+             join clientes c on c.id = v.cliente_id
+             where v.fecha::date = $1::date
+           ) historial
+       order by fecha desc`,
           [fecha],
         ),
         pool.query<{
@@ -156,20 +173,21 @@ historialRouter.get(
           importe: string;
           piezas: string;
         }>(
-          `select vi.descripcion, coalesce(sum(vi.kilos), 0) as kilos,
-              coalesce(sum(vi.importe), 0) as importe, count(*) as piezas
-       from venta_items vi
-       join ventas v on v.id = vi.venta_id
-       where v.fecha::date = $1::date
-       group by vi.descripcion
+          `select pr.nombre as descripcion, coalesce(sum(pi.cantidad), 0) as kilos,
+              coalesce(sum(pi.cantidad * pi.precio), 0) as importe, count(*) as piezas
+       from pedido_items pi
+       join pedidos p on p.id = pi.pedido_id
+       join productos pr on pr.id = pi.producto_id
+       where p.estado = 'entregado' and p.entregado_en::date = $1::date
+       group by pr.nombre
        order by importe desc`,
           [fecha],
         ),
         pool.query<{ kilos: string }>(
-          `select coalesce(sum(vi.kilos), 0) as kilos
-       from venta_items vi
-       join ventas v on v.id = vi.venta_id
-       where v.fecha::date = $1::date`,
+          `select coalesce(sum(pi.cantidad), 0) as kilos
+       from pedido_items pi
+       join pedidos p on p.id = pi.pedido_id
+       where p.estado = 'entregado' and p.entregado_en::date = $1::date`,
           [fecha],
         ),
       ]);
@@ -199,6 +217,7 @@ historialRouter.get(
         clienteNombre: v.clienteNombre,
         totalImporte: Number(v.totalImporte),
         fecha: v.fecha,
+        origen: v.origen,
       })),
       pedidos: pedidos.rows.map((p) => ({
         id: p.id,

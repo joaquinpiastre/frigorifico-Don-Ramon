@@ -172,7 +172,7 @@ function construirHtml(pedido: PedidoDetalle, logoBase64: string): string {
   `;
 }
 
-export default function RemitoPedido() {
+export default function RemitoPedidoOperador() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [pedido, setPedido] = useState<PedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -252,7 +252,7 @@ export default function RemitoPedido() {
         <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
       </View>
       <Button
-        label="GENERAR PDF (ORIGINAL Y DUPLICADO)"
+        label="COMPARTIR / DESCARGAR REMITO"
         loading={generando}
         onPress={() => void compartirRemito()}
       />

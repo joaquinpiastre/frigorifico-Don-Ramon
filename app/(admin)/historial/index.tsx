@@ -267,9 +267,15 @@ export default function HistorialIndex() {
             ) : (
               detalle.ventas.map((v) => (
                 <Pressable
-                  key={v.id}
+                  key={`${v.origen}-${v.id}`}
                   style={styles.fila}
-                  onPress={() => router.push(`/(admin)/ventas/${v.id}/remito`)}
+                  onPress={() =>
+                    router.push(
+                      v.origen === "pedido"
+                        ? `/(admin)/pedidos/${v.id}/remito`
+                        : `/(admin)/ventas/${v.id}/remito`,
+                    )
+                  }
                 >
                   <Text style={styles.filaTexto}>
                     Remito N° {v.numeroRemito} · {v.clienteNombre}

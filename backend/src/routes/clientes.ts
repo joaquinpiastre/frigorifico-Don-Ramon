@@ -22,15 +22,25 @@ const clienteSchema = z.object({
   direccion: z.string().optional(),
 });
 
-// GET /admin/clientes — listado con saldo calculado (ventas - pagos)
+// GET /admin/clientes — listado con saldo calculado (mercadería entregada - pagos)
+// La deuda real sale de los pedidos ya entregados (pedido_items), que es el circuito que
+// usa toda la app. La tabla "ventas" es un circuito viejo que ninguna pantalla llena hoy;
+// se suma igual por las dudas de que exista algún registro histórico cargado a mano.
 clientesRouter.get("/admin/clientes", requireAuth, async (_req, res) => {
   const { rows } = await pool.query(
     `select c.id, c.numero_cliente as "numeroCliente", c.nombre, c.razon_social as "razonSocial",
             c.cuit, c.condicion_iva as "condicionIva", c.telefono, c.direccion, c.activo,
-            coalesce(v.total, 0) - coalesce(p.total, 0) as saldo
+            coalesce(v.total, 0) + coalesce(pe.total, 0) - coalesce(p.total, 0) as saldo
      from clientes c
      left join (select cliente_id, sum(total_importe) as total from ventas group by cliente_id) v
        on v.cliente_id = c.id
+     left join (
+       select ped.cliente_id, sum(pi.cantidad * pi.precio) as total
+       from pedidos ped
+       join pedido_items pi on pi.pedido_id = ped.id
+       where ped.estado = 'entregado'
+       group by ped.cliente_id
+     ) pe on pe.cliente_id = c.id
      left join (select cliente_id, sum(monto) as total from pagos group by cliente_id) p
        on p.cliente_id = c.id
      order by c.nombre`,
@@ -103,9 +113,25 @@ clientesRouter.get("/admin/clientes/:id", requireAuth, async (req, res) => {
     return;
   }
 
+  // Historial de compras: la fuente real es "pedidos" ya entregados (lo que usa toda la
+  // app). Se suma "ventas" (circuito viejo, hoy sin pantalla que lo cargue) por si hay
+  // algún registro histórico, para no perder datos si existiera.
   const ventas = await pool.query(
-    `select id, numero_remito as "numeroRemito", fecha, total_importe as "totalImporte"
-     from ventas where cliente_id = $1 order by fecha desc`,
+    `select id, "numeroRemito", fecha, "totalImporte", origen from (
+       select p.id, p.numero_remito as "numeroRemito", p.entregado_en as fecha,
+              coalesce(sum(pi.cantidad * pi.precio), 0) as "totalImporte", 'pedido' as origen
+       from pedidos p
+       join pedido_items pi on pi.pedido_id = p.id
+       where p.cliente_id = $1 and p.estado = 'entregado'
+       group by p.id, p.numero_remito, p.entregado_en
+
+       union all
+
+       select v.id, v.numero_remito as "numeroRemito", v.fecha, v.total_importe as "totalImporte", 'venta' as origen
+       from ventas v
+       where v.cliente_id = $1
+     ) historial
+     order by fecha desc`,
     [id],
   );
   const pagos = await pool.query(

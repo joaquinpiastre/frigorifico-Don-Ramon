@@ -210,15 +210,22 @@ export default function ClienteDetalle() {
       ) : (
         ventas.map((v) => (
           <Pressable
-            key={v.id}
+            key={`${v.origen}-${v.id}`}
             style={styles.card}
-            onPress={() => router.push(`/(admin)/ventas/${v.id}/remito`)}
+            onPress={() =>
+              router.push(
+                v.origen === "pedido"
+                  ? `/(admin)/pedidos/${v.id}/remito`
+                  : `/(admin)/ventas/${v.id}/remito`,
+              )
+            }
           >
             <Text style={styles.nombre}>Remito N° {v.numeroRemito}</Text>
             <Text style={styles.label}>
               {new Date(v.fecha).toLocaleDateString("es-AR")}
             </Text>
             <Text style={styles.importe}>${v.totalImporte.toFixed(2)}</Text>
+            <Text style={styles.verRemito}>Ver / descargar / compartir remito ›</Text>
           </Pressable>
         ))
       )}
@@ -317,6 +324,12 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
     color: COLORS.doradoOscuro,
+  },
+  verRemito: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 11,
+    color: COLORS.dorado,
+    marginTop: 4,
   },
   saldo: {
     fontFamily: "Poppins_700Bold",

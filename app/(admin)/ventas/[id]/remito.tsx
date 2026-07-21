@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-native';
 import { showAlert } from '@/utils/alert';
+import { imprimirHtmlEnNuevaVentana } from '@/utils/imprimirHtml';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
@@ -83,7 +84,13 @@ export default function Remito() {
     try {
       const html = construirHtml(venta, items, saldoCliente);
       if (Platform.OS === 'web') {
-        await Print.printAsync({ html });
+        const abierto = imprimirHtmlEnNuevaVentana(html);
+        if (!abierto) {
+          showAlert(
+            'Remito',
+            'Habilitá las ventanas emergentes del navegador para generar el remito.',
+          );
+        }
         return;
       }
       const { uri } = await Print.printToFileAsync({ html });
