@@ -3,6 +3,7 @@ import {
   CameraView,
   useCameraPermissions,
   type BarcodeScanningResult,
+  type BarcodeSettings,
 } from "expo-camera";
 import { useRef, useState } from "react";
 import {
@@ -17,17 +18,22 @@ import { COLORS } from "@/constants/colors";
 
 // Tipos de código de barras habituales en etiquetas de faena/mercadería: 1D
 // (Code128/39/Codabar/EAN/UPC/ITF) y QR por si algún día se usa.
-const TIPOS_SOPORTADOS = [
-  "code128",
-  "code39",
-  "codabar",
-  "ean13",
-  "ean8",
-  "upc_a",
-  "upc_e",
-  "itf14",
-  "qr",
-] as const;
+// Referencia estable (fuera del componente) para no reconfigurar el escáner
+// nativo en cada render, que en algunos dispositivos hace que nunca "trabe" foco.
+const BARCODE_SETTINGS: BarcodeSettings = {
+  barcodeTypes: [
+    "code128",
+    "code39",
+    "code93",
+    "codabar",
+    "ean13",
+    "ean8",
+    "upc_a",
+    "upc_e",
+    "itf14",
+    "qr",
+  ],
+};
 
 interface Props {
   visible: boolean;
@@ -97,7 +103,8 @@ export function BarcodeScannerModal({
               style={styles.camara}
               facing="back"
               enableTorch={torch}
-              barcodeScannerSettings={{ barcodeTypes: [...TIPOS_SOPORTADOS] }}
+              autofocus="on"
+              barcodeScannerSettings={BARCODE_SETTINGS}
               onBarcodeScanned={handleScan}
             >
               <View style={styles.overlay}>
