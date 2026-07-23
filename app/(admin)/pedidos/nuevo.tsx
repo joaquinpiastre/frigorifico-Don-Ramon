@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
+import { SelectorReses } from "@/components/pedidos/SelectorReses";
 import { listarClientesApi } from "@/services/clientesApi";
 import { crearPedidoApi } from "@/services/pedidosApi";
 import { listarProductosApi } from "@/services/productosApi";
@@ -73,13 +74,18 @@ export default function NuevoPedido() {
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] =
     useState<Producto | null>(null);
-  const [resSeleccionada, setResSeleccionada] = useState<Res | null>(null);
-  const [cor, setCor] = useState("");
   const [cantidad, setCantidad] = useState("");
   const [precio, setPrecio] = useState("");
   const [garron, setGarron] = useState("");
   const [tropa, setTropa] = useState("");
   const [nota, setNota] = useState("");
+  const [mostrarManual, setMostrarManual] = useState(false);
+
+  // Se pregunta el precio una sola vez por categoría de producto (ej. "vacuno") y
+  // se reutiliza para las demás reses de ese tipo dentro del mismo pedido.
+  const [precioPorCategoria, setPrecioPorCategoria] = useState<
+    Record<string, string>
+  >({});
 
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [guardando, setGuardando] = useState(false);
@@ -110,9 +116,10 @@ export default function NuevoPedido() {
   );
 
   const clientesFiltrados = useMemo(() => {
+    const activos = clientes.filter((c) => c.activo !== false);
     const q = busquedaCliente.trim().toLowerCase();
-    if (!q) return clientes.slice(0, 15);
-    return clientes
+    if (!q) return activos.slice(0, 15);
+    return activos
       .filter((c) => c.nombre.toLowerCase().includes(q))
       .slice(0, 15);
   }, [clientes, busquedaCliente]);
@@ -134,48 +141,23 @@ export default function NuevoPedido() {
   const elegirProducto = (p: Producto) => {
     setProductoSeleccionado(p);
     setBusquedaProducto("");
-    setResSeleccionada(null);
-    setCor("");
     setCantidad("");
-    setPrecio("");
+    setPrecio(precioPorCategoria[p.categoria] ?? "");
     setGarron("");
     setTropa("");
     setNota("");
+    setMostrarManual(false);
   };
 
   const cancelarSeleccionProducto = () => {
     setProductoSeleccionado(null);
-    setResSeleccionada(null);
-    setCor("");
     setCantidad("");
     setPrecio("");
     setGarron("");
     setTropa("");
     setNota("");
+    setMostrarManual(false);
   };
-
-  const elegirRes = (res: Res) => {
-    setResSeleccionada(res);
-    setCor(res.cor);
-    setGarron(res.garron ?? "");
-    setTropa(lotesPorId.get(res.loteId)?.numeroTropa ?? "");
-    setCantidad(String(disponibleReal(res.kilosDisponibles, res.reservado)));
-  };
-
-  const quitarResSeleccionada = () => {
-    setResSeleccionada(null);
-    setCor("");
-    setGarron("");
-    setTropa("");
-    setCantidad("");
-  };
-
-  const resDisponibleReal = resSeleccionada
-    ? disponibleReal(resSeleccionada.kilosDisponibles, resSeleccionada.reservado)
-    : 0;
-  const cantidadExcedeStock =
-    resSeleccionada !== null &&
-    Number(cantidad.replace(",", ".")) > resDisponibleReal;
 
   const productoDisponibleReal =
     productoSeleccionado && !productoSeleccionado.tieneCodigoBarra
@@ -188,7 +170,47 @@ export default function NuevoPedido() {
     productoDisponibleReal !== null &&
     Number(cantidad.replace(",", ".")) > productoDisponibleReal;
 
-  const agregarLinea = async () => {
+  // Agrega al pedido varias reses marcadas de una sola vez (checklist / escaneo),
+  // todas con el mismo precio ingresado para esta categoría.
+  const agregarLineasMultiples = (
+    seleccion: { res: Res; cantidad: number }[],
+  ) => {
+    if (!productoSeleccionado) return;
+    const precioNum = Number(precio.replace(",", "."));
+    if (!precioNum && precioNum !== 0) {
+      showAlert("Pedido", "Ingresá el precio para esta res.");
+      return;
+    }
+    if (precioNum < 0) {
+      showAlert("Pedido", "El precio no puede ser negativo.");
+      return;
+    }
+    const nuevasLineas: Linea[] = seleccion.map(({ res, cantidad: cant }) => {
+      const disponible = disponibleReal(res.kilosDisponibles, res.reservado);
+      return {
+        productoId: productoSeleccionado.id,
+        productoNombre: productoSeleccionado.nombre,
+        cantidad: cant,
+        precio: precioNum,
+        garron: res.garron ?? undefined,
+        tropa: lotesPorId.get(res.loteId)?.numeroTropa,
+        nota: nota.trim() || undefined,
+        resId: res.id,
+        cor: res.cor,
+        sinStockSuficiente: cant > disponible,
+      };
+    });
+    setLineas((prev) => [...prev, ...nuevasLineas]);
+    setPrecioPorCategoria((prev) => ({
+      ...prev,
+      [productoSeleccionado.categoria]: precio,
+    }));
+    cancelarSeleccionProducto();
+  };
+
+  // Agrega una línea sin vincularla a una res concreta del stock (o, para productos
+  // sin código de barra, la línea normal).
+  const agregarLineaManual = async () => {
     if (!productoSeleccionado) return;
     const cantidadNum = Number(cantidad.replace(",", "."));
     const precioNum = Number(precio.replace(",", "."));
@@ -198,12 +220,8 @@ export default function NuevoPedido() {
     }
 
     let sinStockSuficiente = false;
-    const disponible = resSeleccionada
-      ? resDisponibleReal
-      : productoDisponibleReal;
-    const reservadoDe = resSeleccionada
-      ? resSeleccionada.reservado
-      : productoSeleccionado.reservado;
+    const disponible = productoDisponibleReal;
+    const reservadoDe = productoSeleccionado.reservado;
     if (disponible !== null && cantidadNum > disponible) {
       const faltante = cantidadNum - disponible;
       const avisoReserva =
@@ -228,12 +246,14 @@ export default function NuevoPedido() {
         garron: garron.trim() || undefined,
         tropa: tropa.trim() || undefined,
         nota: nota.trim() || undefined,
-        resId: resSeleccionada?.id,
-        cor: resSeleccionada?.cor ?? (cor.trim() || undefined),
-        sinStock: productoSeleccionado.tieneCodigoBarra && !resSeleccionada,
+        sinStock: productoSeleccionado.tieneCodigoBarra,
         sinStockSuficiente,
       },
     ]);
+    setPrecioPorCategoria((prev) => ({
+      ...prev,
+      [productoSeleccionado.categoria]: precio,
+    }));
     cancelarSeleccionProducto();
   };
 
@@ -353,99 +373,6 @@ export default function NuevoPedido() {
               {productoSeleccionado.nombre}
             </Text>
 
-            {productoSeleccionado.tieneCodigoBarra ? (
-              <>
-                <Text style={styles.subSeccion}>Elegí la unidad en stock</Text>
-                {resesDelTipo.length === 0 ? (
-                  <Text style={styles.aviso}>
-                    ⚠️ No tenés stock de {productoSeleccionado.nombre} en este
-                    momento.
-                  </Text>
-                ) : (
-                  <FlatList
-                    data={resesDelTipo}
-                    keyExtractor={(r) => String(r.id)}
-                    scrollEnabled={false}
-                    renderItem={({ item }) => (
-                      <Pressable
-                        style={[
-                          styles.opcionCard,
-                          resSeleccionada?.id === item.id &&
-                            styles.opcionCardActiva,
-                        ]}
-                        onPress={() => elegirRes(item)}
-                      >
-                        <Text style={styles.opcionTexto}>
-                          Cor {item.cor}
-                          {item.garron ? ` · Garrón ${item.garron}` : ""}
-                        </Text>
-                        <Text style={styles.sub}>
-                          {disponibleReal(item.kilosDisponibles, item.reservado)} kg disponibles
-                          {item.reservado > 0
-                            ? ` (${item.reservado} kg ya reservados en otro pedido)`
-                            : ""}
-                          {item.clasificacion ? ` · ${item.clasificacion}` : ""}
-                        </Text>
-                      </Pressable>
-                    )}
-                  />
-                )}
-
-                {resSeleccionada ? (
-                  <View style={styles.filaSeleccion}>
-                    <Text style={styles.sub}>
-                      Vinculado a Cor {resSeleccionada.cor}
-                      {resSeleccionada.garron
-                        ? ` · Garrón ${resSeleccionada.garron}`
-                        : ""}
-                    </Text>
-                    <Button
-                      label="QUITAR"
-                      variant="secondary"
-                      onPress={quitarResSeleccionada}
-                    />
-                  </View>
-                ) : (
-                  <Text style={styles.sub}>
-                    {resesDelTipo.length > 0
-                      ? "O agregalo sin vincularlo a una unidad puntual del stock:"
-                      : "Podés agregarlo igual, sin vincularlo a stock:"}
-                  </Text>
-                )}
-              </>
-            ) : null}
-
-            <Input
-              label={`Cantidad a vender (${productoSeleccionado.unidad})`}
-              value={cantidad}
-              onChangeText={setCantidad}
-              keyboardType="decimal-pad"
-              placeholder={resSeleccionada ? undefined : "Ej: 50"}
-            />
-            {resSeleccionada ? (
-              <Text style={cantidadExcedeStock ? styles.aviso : styles.sub}>
-                {cantidadExcedeStock
-                  ? `⚠️ Disponible real: ${resDisponibleReal} kg${
-                      resSeleccionada.reservado > 0
-                        ? ` (${resSeleccionada.reservado} kg ya está anotado en otro pedido pendiente)`
-                        : ""
-                    }.`
-                  : `Disponible: ${resDisponibleReal} kg. Si vendés menos, el resto queda en stock (ej: media res).`}
-              </Text>
-            ) : null}
-            {productoDisponibleReal !== null ? (
-              <Text
-                style={cantidadExcedeStockProducto ? styles.aviso : styles.sub}
-              >
-                {cantidadExcedeStockProducto
-                  ? `⚠️ Disponible real: ${productoDisponibleReal} ${productoSeleccionado.unidad}${
-                      productoSeleccionado.reservado > 0
-                        ? ` (${productoSeleccionado.reservado} ya está anotado en otro pedido pendiente)`
-                        : ""
-                    }.`
-                  : `Disponible: ${productoDisponibleReal} ${productoSeleccionado.unidad}.`}
-              </Text>
-            ) : null}
             <Input
               label="Precio"
               value={precio}
@@ -453,39 +380,103 @@ export default function NuevoPedido() {
               keyboardType="decimal-pad"
             />
 
-            {!resSeleccionada ? (
+            {productoSeleccionado.tieneCodigoBarra ? (
+              <>
+                <SelectorReses
+                  tipo={productoSeleccionado.categoria as Res["tipo"]}
+                  productoNombre={productoSeleccionado.nombre}
+                  resesDelTipo={resesDelTipo}
+                  onConfirmar={agregarLineasMultiples}
+                  onCancelar={cancelarSeleccionProducto}
+                />
+
+                {!mostrarManual ? (
+                  <Button
+                    label="AGREGAR SIN VINCULAR A STOCK"
+                    variant="secondary"
+                    onPress={() => setMostrarManual(true)}
+                  />
+                ) : (
+                  <>
+                    <Text style={styles.aviso}>
+                      ⚠️ Esta línea no va a estar vinculada a stock existente.
+                    </Text>
+                    <Input
+                      label={`Cantidad a vender (${productoSeleccionado.unidad})`}
+                      value={cantidad}
+                      onChangeText={setCantidad}
+                      keyboardType="decimal-pad"
+                      placeholder="Ej: 50"
+                    />
+                    <Input
+                      label="Garrón (opcional)"
+                      value={garron}
+                      onChangeText={setGarron}
+                    />
+                    <Input
+                      label="Tropa (opcional)"
+                      value={tropa}
+                      onChangeText={setTropa}
+                    />
+                    <Input
+                      label="Nota (opcional)"
+                      value={nota}
+                      onChangeText={setNota}
+                      placeholder="Ej: media res, sin hueso…"
+                    />
+                    <Button
+                      label="AGREGAR LÍNEA SIN STOCK"
+                      onPress={() => void agregarLineaManual()}
+                    />
+                    <Button
+                      label="CANCELAR"
+                      variant="secondary"
+                      onPress={() => setMostrarManual(false)}
+                    />
+                  </>
+                )}
+              </>
+            ) : (
               <>
                 <Input
-                  label="Garrón (opcional)"
-                  value={garron}
-                  onChangeText={setGarron}
+                  label={`Cantidad a vender (${productoSeleccionado.unidad})`}
+                  value={cantidad}
+                  onChangeText={setCantidad}
+                  keyboardType="decimal-pad"
+                  placeholder="Ej: 50"
                 />
+                {productoDisponibleReal !== null ? (
+                  <Text
+                    style={
+                      cantidadExcedeStockProducto ? styles.aviso : styles.sub
+                    }
+                  >
+                    {cantidadExcedeStockProducto
+                      ? `⚠️ Disponible real: ${productoDisponibleReal} ${productoSeleccionado.unidad}${
+                          productoSeleccionado.reservado > 0
+                            ? ` (${productoSeleccionado.reservado} ya está anotado en otro pedido pendiente)`
+                            : ""
+                        }.`
+                      : `Disponible: ${productoDisponibleReal} ${productoSeleccionado.unidad}.`}
+                  </Text>
+                ) : null}
                 <Input
-                  label="Tropa (opcional)"
-                  value={tropa}
-                  onChangeText={setTropa}
+                  label="Nota (opcional)"
+                  value={nota}
+                  onChangeText={setNota}
+                  placeholder="Ej: media res, sin hueso…"
+                />
+                <Button
+                  label="AGREGAR LÍNEA"
+                  onPress={() => void agregarLineaManual()}
+                />
+                <Button
+                  label="CANCELAR"
+                  variant="secondary"
+                  onPress={cancelarSeleccionProducto}
                 />
               </>
-            ) : null}
-            <Input
-              label="Nota (opcional)"
-              value={nota}
-              onChangeText={setNota}
-              placeholder="Ej: media res, sin hueso…"
-            />
-
-            {productoSeleccionado.tieneCodigoBarra && !resSeleccionada ? (
-              <Text style={styles.aviso}>
-                ⚠️ Esta línea no va a estar vinculada a stock existente.
-              </Text>
-            ) : null}
-
-            <Button label="AGREGAR LÍNEA" onPress={() => void agregarLinea()} />
-            <Button
-              label="CANCELAR"
-              variant="secondary"
-              onPress={cancelarSeleccionProducto}
-            />
+            )}
           </>
         ) : (
           <>
@@ -581,12 +572,6 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_700Bold",
     fontSize: 14,
     color: COLORS.grisTexto,
-  },
-  subSeccion: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 12,
-    color: COLORS.grisSecundario,
-    marginTop: 4,
   },
   fila: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   filaSeleccion: {

@@ -3,7 +3,7 @@ import { apiRequest } from "./apiClient";
 
 export async function crearPedidoApi(input: {
   clienteId: number;
-  repartidor: string;
+  repartidor?: string;
   items: {
     productoId: number;
     cantidad: number;
@@ -86,4 +86,14 @@ export async function editarPedidoApi(
 
 export async function eliminarPedidoApi(id: number): Promise<void> {
   await apiRequest(`/pedidos/${id}`, { method: "DELETE" });
+}
+
+export async function reasignarRepartidorApi(
+  id: number,
+  repartidor: string,
+): Promise<void> {
+  await apiRequest(`/pedidos/${id}/repartidor`, {
+    method: "PATCH",
+    body: JSON.stringify({ repartidor }),
+  });
 }

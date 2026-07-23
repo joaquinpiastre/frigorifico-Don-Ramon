@@ -38,6 +38,7 @@ export async function actualizarClienteApi(
     condicionIva?: CondicionIva;
     telefono?: string;
     direccion?: string;
+    activo?: boolean;
   },
 ): Promise<Cliente> {
   const data = await apiRequest<{ cliente: Cliente }>(`/admin/clientes/${id}`, {

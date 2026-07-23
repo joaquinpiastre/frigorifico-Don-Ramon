@@ -16,6 +16,12 @@ export default function RepartidorHome() {
         onPress={() => router.push('/(repartidor)/pedidos')}
       />
       <Button
+        label="NUEVO PEDIDO"
+        variant="secondary"
+        iconLeft={<Ionicons name="add-circle-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(repartidor)/pedidos/nuevo')}
+      />
+      <Button
         label="CLIENTES"
         variant="secondary"
         iconLeft={<Ionicons name="people-outline" size={18} color={COLORS.negro} />}

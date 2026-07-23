@@ -20,15 +20,17 @@ const itemSchema = z.object({
 
 const pedidoSchema = z.object({
   clienteId: z.number().int(),
-  repartidor: z.string().trim().min(1),
+  // Opcional: si lo crea un repartidor, se autoasigna y este campo se ignora.
+  repartidor: z.string().trim().min(1).optional(),
   items: z.array(itemSchema).min(1),
 });
 
-// POST /pedidos — admin u operador crean el pedido y lo asignan a un repartidor
+// POST /pedidos — admin, operador o repartidor crean el pedido y lo asignan a un repartidor.
+// Un repartidor solo puede armarlo para sí mismo (no puede asignárselo a otro).
 pedidosRouter.post(
   "/pedidos",
   requireAuth,
-  requireRol("operador", "admin"),
+  requireRol("operador", "admin", "repartidor"),
   async (req, res) => {
     const parsed = pedidoSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -37,8 +39,14 @@ pedidosRouter.post(
         .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
       return;
     }
-    const { clienteId, repartidor, items } = parsed.data;
+    const { clienteId, items } = parsed.data;
     const usuario = (req as { user?: AuthClaims }).user;
+    const repartidor =
+      usuario?.rol === "repartidor" ? usuario.sub : parsed.data.repartidor;
+    if (!repartidor) {
+      res.status(400).json({ error: "Elegí un repartidor para el pedido." });
+      return;
+    }
 
     const client = await pool.connect();
     try {
@@ -447,6 +455,79 @@ pedidosRouter.patch(
   },
 );
 
+const reasignarRepartidorSchema = z.object({
+  repartidor: z.string().trim().min(1),
+});
+
+// PATCH /pedidos/:id/repartidor — reasigna el repartidor de un pedido ya armado
+// (a veces se cambia de repartidor después de armar el pedido, antes de cargarlo).
+pedidosRouter.patch(
+  "/pedidos/:id/repartidor",
+  requireAuth,
+  requireRol("operador", "admin"),
+  async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Id inválido." });
+      return;
+    }
+    const parsed = reasignarRepartidorSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
+      return;
+    }
+    const { repartidor } = parsed.data;
+
+    const usuarioResult = await pool.query(
+      `select id from usuarios where id = $1 and rol = 'repartidor' and activo = true`,
+      [repartidor],
+    );
+    if (usuarioResult.rows.length === 0) {
+      res
+        .status(400)
+        .json({ error: "El repartidor indicado no existe o no está activo." });
+      return;
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const { rows } = await client.query(
+        "select estado from pedidos where id = $1 for update",
+        [id],
+      );
+      if (rows.length === 0) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "Pedido no encontrado." });
+        return;
+      }
+      if (rows[0].estado !== "armado") {
+        await client.query("ROLLBACK");
+        res.status(409).json({
+          error:
+            'Solo se puede reasignar el repartidor de un pedido en estado "armado".',
+        });
+        return;
+      }
+      await client.query("update pedidos set repartidor = $2 where id = $1", [
+        id,
+        repartidor,
+      ]);
+      await client.query("COMMIT");
+      res.json({ ok: true });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      const message =
+        err instanceof Error ? err.message : "Error al reasignar el repartidor.";
+      res.status(500).json({ error: message });
+    } finally {
+      client.release();
+    }
+  },
+);
+
 // PATCH /pedidos/:id/cargar — operador o repartidor confirman que subió a la camioneta
 pedidosRouter.patch(
   "/pedidos/:id/cargar",
@@ -485,7 +566,11 @@ pedidosRouter.patch(
 
 const repesajeSchema = z.object({ cantidad: z.number().positive() });
 
-// PATCH /pedidos/:id/items/:itemId/repesar — operador actualiza el peso real antes de armar
+// PATCH /pedidos/:id/items/:itemId/repesar — corrige el peso real de una línea.
+// Se usa tanto antes de armar (ajuste normal) como después (ej. pesó menos al llegar
+// al destino): si el pedido ya descontó stock real (estado distinto de "pendiente"),
+// hay que devolver/quitar la diferencia de reses.kilos_disponibles para no dejar
+// stock fantasma.
 pedidosRouter.patch(
   "/pedidos/:id/items/:itemId/repesar",
   requireAuth,
@@ -499,14 +584,51 @@ pedidosRouter.patch(
       return;
     }
     const { cantidad } = parsed.data;
-    const { rows } = await pool.query(
-      `update pedido_items set cantidad = $1 where id = $2 and pedido_id = $3 returning id`,
-      [cantidad, itemId, pedidoId],
-    );
-    if (rows.length === 0) {
-      res.status(404).json({ error: "Ítem no encontrado." });
-      return;
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const { rows } = await client.query(
+        `select pi.cantidad as "cantidadVieja", pi.res_id as "resId", p.estado
+         from pedido_items pi
+         join pedidos p on p.id = pi.pedido_id
+         where pi.id = $1 and pi.pedido_id = $2
+         for update`,
+        [itemId, pedidoId],
+      );
+      if (rows.length === 0) {
+        await client.query("ROLLBACK");
+        res.status(404).json({ error: "Ítem no encontrado." });
+        return;
+      }
+      const { cantidadVieja, resId, estado } = rows[0];
+
+      await client.query(
+        "update pedido_items set cantidad = $1 where id = $2",
+        [cantidad, itemId],
+      );
+
+      if (estado !== "pendiente" && resId) {
+        const diferencia = Number(cantidadVieja) - cantidad;
+        await client.query(
+          `update reses
+           set kilos_disponibles = kilos_disponibles + $1,
+               estado = case when kilos_disponibles + $1 > 0 then 'en_stock' else estado end
+           where id = $2`,
+          [diferencia, resId],
+        );
+      }
+
+      await client.query("COMMIT");
+      res.json({ ok: true });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      const message =
+        err instanceof Error ? err.message : "Error al repesar el ítem.";
+      res.status(500).json({ error: message });
+    } finally {
+      client.release();
     }
-    res.json({ ok: true });
   },
 );

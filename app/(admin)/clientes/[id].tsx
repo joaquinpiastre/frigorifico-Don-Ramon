@@ -15,6 +15,7 @@ import { MetodoPagoSelector } from "@/components/ui/MetodoPagoSelector";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
 import {
+  actualizarClienteApi,
   eliminarClienteApi,
   obtenerClienteApi,
   registrarPagoApi,
@@ -49,6 +50,7 @@ export default function ClienteDetalle() {
   const [banco, setBanco] = useState("");
   const [registrandoPago, setRegistrandoPago] = useState(false);
   const [eliminando, setEliminando] = useState(false);
+  const [cambiandoActivo, setCambiandoActivo] = useState(false);
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -140,6 +142,24 @@ export default function ClienteDetalle() {
     }
   };
 
+  const toggleActivo = async () => {
+    if (!cliente) return;
+    setCambiandoActivo(true);
+    try {
+      const actualizado = await actualizarClienteApi(cliente.id, {
+        activo: !cliente.activo,
+      });
+      setCliente(actualizado);
+    } catch (e) {
+      showAlert(
+        "Cliente",
+        e instanceof Error ? e.message : "No se pudo actualizar el cliente.",
+      );
+    } finally {
+      setCambiandoActivo(false);
+    }
+  };
+
   if (cargando) {
     return (
       <Screen title="Cliente" scrollable>
@@ -159,7 +179,7 @@ export default function ClienteDetalle() {
   return (
     <Screen
       title={cliente.nombre}
-      subtitle={`Cliente #${cliente.numeroCliente}`}
+      subtitle={`Cliente #${cliente.numeroCliente}${cliente.activo === false ? " · Inactivo" : ""}`}
       scrollable
     >
       {cliente.razonSocial ||
@@ -304,6 +324,12 @@ export default function ClienteDetalle() {
         ))
       )}
 
+      <Button
+        label={cliente.activo === false ? "ACTIVAR CLIENTE" : "DESACTIVAR CLIENTE"}
+        variant={cliente.activo === false ? "secondary" : "danger"}
+        loading={cambiandoActivo}
+        onPress={() => void toggleActivo()}
+      />
       <Button
         label="ELIMINAR CLIENTE"
         variant="danger"

@@ -124,6 +124,7 @@ export default function ClientesIndex() {
             >
               <Text style={styles.nombre}>
                 #{c.numeroCliente} · {c.nombre}
+                {c.activo === false ? ' · Inactivo' : ''}
               </Text>
               {c.razonSocial ? <Text style={styles.razonSocial}>{c.razonSocial}</Text> : null}
               <Text style={[styles.saldo, (c.saldo ?? 0) > 0 && styles.saldoDeudor]}>

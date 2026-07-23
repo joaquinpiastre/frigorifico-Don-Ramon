@@ -11,14 +11,12 @@ import { listarClientesApi } from "@/services/clientesApi";
 import { crearPedidoApi } from "@/services/pedidosApi";
 import { listarProductosApi } from "@/services/productosApi";
 import { listarLotesApi, listarResesApi } from "@/services/stockApi";
-import { listarRepartidoresApi } from "@/services/usuariosApi";
 import type {
   CategoriaProducto,
   Cliente,
   LoteIngreso,
   Producto,
   Res,
-  UsuarioAdmin,
 } from "@/types";
 
 interface Linea {
@@ -57,9 +55,8 @@ function productoCoincide(producto: Producto, query: string): boolean {
     .some((token) => sinonimos.includes(token) || producto.categoria === token);
 }
 
-export default function NuevoPedidoOperador() {
+export default function NuevoPedidoRepartidor() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [repartidores, setRepartidores] = useState<UsuarioAdmin[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [resesStock, setResesStock] = useState<Res[]>([]);
   const [lotes, setLotes] = useState<LoteIngreso[]>([]);
@@ -67,8 +64,6 @@ export default function NuevoPedidoOperador() {
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clienteSeleccionado, setClienteSeleccionado] =
     useState<Cliente | null>(null);
-  const [repartidorSeleccionado, setRepartidorSeleccionado] =
-    useState<UsuarioAdmin | null>(null);
 
   const [busquedaProducto, setBusquedaProducto] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] =
@@ -93,9 +88,6 @@ export default function NuevoPedidoOperador() {
     listarClientesApi()
       .then(setClientes)
       .catch(() => setClientes([]));
-    listarRepartidoresApi()
-      .then(setRepartidores)
-      .catch(() => setRepartidores([]));
     listarProductosApi()
       .then(setProductos)
       .catch(() => setProductos([]));
@@ -257,18 +249,14 @@ export default function NuevoPedidoOperador() {
   const total = lineas.reduce((acc, l) => acc + l.cantidad * l.precio, 0);
 
   const guardarPedido = async () => {
-    if (!clienteSeleccionado || !repartidorSeleccionado || lineas.length === 0) {
-      showAlert(
-        "Pedido",
-        "Elegí cliente, repartidor y agregá al menos una línea.",
-      );
+    if (!clienteSeleccionado || lineas.length === 0) {
+      showAlert("Pedido", "Elegí el cliente y agregá al menos una línea.");
       return;
     }
     setGuardando(true);
     try {
       await crearPedidoApi({
         clienteId: clienteSeleccionado.id,
-        repartidor: repartidorSeleccionado.id,
         items: lineas.map((l) => ({
           productoId: l.productoId,
           cantidad: l.cantidad,
@@ -279,7 +267,7 @@ export default function NuevoPedidoOperador() {
           resId: l.resId,
         })),
       });
-      router.replace("/(operador)/pedidos");
+      router.replace("/(repartidor)/pedidos");
     } catch (e) {
       showAlert(
         "Pedido",
@@ -293,7 +281,7 @@ export default function NuevoPedidoOperador() {
   return (
     <Screen
       title="Nuevo pedido"
-      subtitle="Cliente, repartidor y mercadería"
+      subtitle="Se te asigna a vos como repartidor"
       scrollable
     >
       <View style={styles.card}>
@@ -331,31 +319,6 @@ export default function NuevoPedidoOperador() {
             />
           </>
         )}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.seccion}>Repartidor</Text>
-        <View style={styles.fila}>
-          {repartidores.map((r) => (
-            <Pressable
-              key={r.id}
-              style={[
-                styles.chip,
-                repartidorSeleccionado?.id === r.id && styles.chipActivo,
-              ]}
-              onPress={() => setRepartidorSeleccionado(r)}
-            >
-              <Text
-                style={[
-                  styles.chipTexto,
-                  repartidorSeleccionado?.id === r.id && styles.chipTextoActivo,
-                ]}
-              >
-                {r.nombre}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
       </View>
 
       <View style={styles.card}>
@@ -566,7 +529,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.grisTexto,
   },
-  fila: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   filaSeleccion: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -577,21 +539,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.doradoOscuro,
   },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#dcd2c8",
-  },
-  chipActivo: { backgroundColor: COLORS.negro, borderColor: COLORS.negro },
-  chipTexto: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 12,
-    color: COLORS.grisTexto,
-  },
-  chipTextoActivo: { color: "#fff" },
   opcionCard: {
     backgroundColor: COLORS.grisClaro,
     borderRadius: 12,
@@ -599,7 +546,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     gap: 2,
   },
-  opcionCardActiva: { backgroundColor: COLORS.doradoClaro },
   opcionTexto: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 13,

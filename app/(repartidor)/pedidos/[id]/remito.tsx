@@ -6,165 +6,12 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 import { showAlert } from '@/utils/alert';
 import { imprimirHtmlEnNuevaVentana } from '@/utils/imprimirHtml';
 import { obtenerLogoBase64 } from '@/utils/logo';
+import { construirHtmlRemitoPedido } from '@/utils/remitoPedidoHtml';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { obtenerPedidoApi } from '@/services/pedidosApi';
 import type { PedidoDetalle } from '@/types';
-
-const FILAS_MINIMAS = 14;
-
-function partesFecha(fechaIso: string): { dd: string; mm: string; yyyy: string } {
-  const d = new Date(fechaIso);
-  return {
-    dd: String(d.getDate()).padStart(2, '0'),
-    mm: String(d.getMonth() + 1).padStart(2, '0'),
-    yyyy: String(d.getFullYear()),
-  };
-}
-
-function construirFilas(pedido: PedidoDetalle): string {
-  const filas = pedido.items
-    .map((item) => {
-      const trazabilidad = item.garron ? `Garrón ${item.garron}` : '';
-      return `
-        <tr>
-          <td class="num">${item.cantidad}</td>
-          <td class="desc">${item.productoNombre}${trazabilidad ? `<div class="trazabilidad">${trazabilidad}</div>` : ''}${item.nota ? `<div class="trazabilidad">${item.nota}</div>` : ''}</td>
-          <td class="num">$${item.precio.toFixed(2)}</td>
-          <td class="num">$${(item.cantidad * item.precio).toFixed(2)}</td>
-        </tr>`;
-    })
-    .join('');
-
-  const filaVacia = '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
-  const vacias = Math.max(0, FILAS_MINIMAS - pedido.items.length);
-  return filas + filaVacia.repeat(vacias);
-}
-
-function construirPagina(pedido: PedidoDetalle, logoBase64: string, leyenda: 'ORIGINAL' | 'DUPLICADO'): string {
-  const total = pedido.items.reduce((acc, i) => acc + i.cantidad * i.precio, 0);
-  const { dd, mm, yyyy } = partesFecha(pedido.fecha);
-
-  return `
-    <div class="page">
-      <div class="leyenda">${leyenda}</div>
-
-      <table class="headerTable">
-        <tr>
-          <td class="logoCell"><img src="${logoBase64}" class="logo" /></td>
-          <td class="empresaCell">
-            <p class="empresaLinea">ABASTECEDORES</p>
-            <p class="empresaLinea">CARNICERO</p>
-            <p class="empresaLinea">MATARIFE</p>
-          </td>
-          <td class="notaCell">
-            <p class="notaTitulo">NOTA DE PEDIDO</p>
-            <p class="notaCampo">N° <span class="notaValor">${String(pedido.numeroRemito).padStart(6, '0')}</span></p>
-            <p class="notaCampo">FECHA</p>
-            <div class="fechaBoxes">
-              <span class="fechaBox">${dd}</span>
-              <span class="fechaBox">${mm}</span>
-              <span class="fechaBox">${yyyy}</span>
-            </div>
-          </td>
-        </tr>
-      </table>
-
-      <p class="direccion">Espínola 589&nbsp;&nbsp;&nbsp;Tel.: 2604 578682&nbsp;&nbsp;&nbsp;San Rafael - Mza.</p>
-      <hr class="divisoria" />
-
-      <div class="campo">
-        <span class="campoLabel">Señor/es:</span>
-        <span class="campoValor">#${pedido.clienteNumero} — ${pedido.clienteNombre}${pedido.clienteRazonSocial ? ` (${pedido.clienteRazonSocial})` : ''}</span>
-      </div>
-      <div class="campo">
-        <span class="campoLabel">Domicilio:</span>
-        <span class="campoValor">${pedido.clienteDireccion ?? ''}</span>
-      </div>
-      <div class="condiciones">
-        <span class="campoLabel">Condiciones de Venta:</span>
-        <span class="checkboxGroup">Contado <span class="checkbox"></span></span>
-        <span class="checkboxGroup">Cta. Cte. <span class="checkbox"></span></span>
-        <span class="campoLabel">C.U.I.T:</span>
-        <span class="campoValorChico">${pedido.clienteCuit ?? ''}</span>
-      </div>
-
-      <table class="itemsTable">
-        <thead>
-          <tr><th>PESO</th><th>DESCRIPCION</th><th>P. Unitario</th><th>IMPORTE</th></tr>
-        </thead>
-        <tbody>${construirFilas(pedido)}</tbody>
-      </table>
-
-      <div class="totalRow">
-        <span class="totalLabel">$</span>
-        <span class="totalValor">${total.toFixed(2)}</span>
-      </div>
-
-      <div class="firma">
-        <div class="firmaLinea"></div>
-        <p class="firmaTexto">FIRMA</p>
-      </div>
-    </div>
-  `;
-}
-
-function construirHtml(pedido: PedidoDetalle, logoBase64: string): string {
-  return `
-    <html>
-      <head><meta charset="utf-8" />
-      <style>
-        @page { size: A4; margin: 14mm; }
-        * { box-sizing: border-box; }
-        body { font-family: Helvetica, Arial, sans-serif; color: #1c1c1c; margin: 0; }
-        .page { position: relative; page-break-after: always; }
-        .leyenda {
-          position: absolute; top: -6px; right: 0;
-          font-size: 10px; letter-spacing: 2px; font-weight: bold;
-          color: #000; border: 1.5px solid #000; padding: 2px 10px; border-radius: 6px;
-        }
-        .headerTable { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        .logoCell { width: 66px; }
-        .logo { width: 58px; height: 58px; object-fit: contain; border-radius: 50%; border: 1px solid #000; filter: grayscale(100%); }
-        .empresaCell { padding-left: 10px; vertical-align: middle; }
-        .empresaLinea { margin: 0; font-weight: bold; font-size: 13px; letter-spacing: 0.5px; }
-        .notaCell { text-align: right; vertical-align: top; }
-        .notaTitulo { font-weight: bold; font-size: 15px; margin: 0 0 4px; }
-        .notaCampo { margin: 2px 0; font-size: 12px; }
-        .notaValor { font-weight: bold; }
-        .fechaBoxes { display: flex; justify-content: flex-end; gap: 4px; }
-        .fechaBox { display: inline-block; width: 32px; text-align: center; border: 1px solid #000; background: #fff; padding: 3px 0; font-size: 12px; }
-        .direccion { text-align: center; font-size: 12px; margin: 8px 0 4px; }
-        .divisoria { border: none; border-top: 1.5px solid #000; margin: 4px 0 10px; }
-        .campo { display: flex; gap: 6px; align-items: baseline; border-bottom: 1px dotted #999; padding: 3px 2px; margin-bottom: 4px; }
-        .campoLabel { font-weight: bold; font-size: 12px; white-space: nowrap; }
-        .campoValor { font-size: 12px; background: #f2f2f2; flex: 1; padding: 2px 6px; }
-        .campoValorChico { font-size: 12px; background: #f2f2f2; padding: 2px 8px; }
-        .condiciones { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-        .checkboxGroup { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
-        .checkbox { display: inline-block; width: 12px; height: 12px; border: 1px solid #000; background: #fff; }
-        .itemsTable { width: 100%; border-collapse: collapse; margin-top: 4px; }
-        .itemsTable th { border: 1px solid #000; background: #000; color: #fff; padding: 6px; font-size: 11px; }
-        .itemsTable td { border: 1px solid #000; background: #fff; padding: 5px 6px; font-size: 11px; height: 17px; }
-        .itemsTable td.num { text-align: right; width: 15%; }
-        .itemsTable td.desc { text-align: left; }
-        .trazabilidad { font-size: 10px; color: #555; margin-top: 2px; }
-        .totalRow { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 8px; }
-        .totalLabel { font-weight: bold; font-size: 15px; }
-        .totalValor { border: 1px solid #000; background: #f2f2f2; padding: 5px 16px; font-weight: bold; font-size: 15px; min-width: 100px; text-align: right; }
-        .firma { margin-top: 46px; text-align: center; }
-        .firmaLinea { border-top: 1px solid #000; width: 260px; margin: 0 auto 4px; }
-        .firmaTexto { font-size: 11px; letter-spacing: 1px; margin: 0; }
-      </style>
-      </head>
-      <body>
-        ${construirPagina(pedido, logoBase64, 'ORIGINAL')}
-        ${construirPagina(pedido, logoBase64, 'DUPLICADO')}
-      </body>
-    </html>
-  `;
-}
 
 export default function RemitoPedidoRepartidor() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -185,7 +32,7 @@ export default function RemitoPedidoRepartidor() {
     setGenerando(true);
     try {
       const logoBase64 = await obtenerLogoBase64();
-      const html = construirHtml(pedido, logoBase64);
+      const html = construirHtmlRemitoPedido(pedido, logoBase64);
       if (Platform.OS === 'web') {
         const abierto = imprimirHtmlEnNuevaVentana(html);
         if (!abierto) {

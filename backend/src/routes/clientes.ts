@@ -209,9 +209,11 @@ const actualizarClienteSchema = z.object({
   condicionIva: z.enum(CONDICIONES_IVA).optional(),
   telefono: z.string().trim().optional(),
   direccion: z.string().trim().optional(),
+  activo: z.boolean().optional(),
 });
 
 // PATCH /admin/clientes/:id — edita datos de contacto del cliente (lo usa también el repartidor)
+// y permite activar/desactivar (solo admin, ver chequeo debajo).
 clientesRouter.patch("/admin/clientes/:id", requireAuth, async (req, res) => {
   const parsed = actualizarClienteSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -220,8 +222,13 @@ clientesRouter.patch("/admin/clientes/:id", requireAuth, async (req, res) => {
       .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
     return;
   }
-  const { nombre, razonSocial, cuit, condicionIva, telefono, direccion } =
+  const { nombre, razonSocial, cuit, condicionIva, telefono, direccion, activo } =
     parsed.data;
+  const usuario = (req as { user?: AuthClaims }).user;
+  if (activo !== undefined && usuario?.rol !== "admin") {
+    res.status(403).json({ error: "Solo un admin puede activar/desactivar clientes." });
+    return;
+  }
   const id = Number(req.params.id);
 
   const { rows } = await pool.query(
@@ -231,7 +238,8 @@ clientesRouter.patch("/admin/clientes/:id", requireAuth, async (req, res) => {
        cuit = coalesce($4, cuit),
        condicion_iva = coalesce($5, condicion_iva),
        telefono = coalesce($6, telefono),
-       direccion = coalesce($7, direccion)
+       direccion = coalesce($7, direccion),
+       activo = coalesce($8, activo)
      where id = $1
      returning id, numero_cliente as "numeroCliente", nombre, razon_social as "razonSocial",
                cuit, condicion_iva as "condicionIva", telefono, direccion, activo`,
@@ -243,6 +251,7 @@ clientesRouter.patch("/admin/clientes/:id", requireAuth, async (req, res) => {
       condicionIva ?? null,
       telefono ?? null,
       direccion ?? null,
+      activo ?? null,
     ],
   );
   if (rows.length === 0) {

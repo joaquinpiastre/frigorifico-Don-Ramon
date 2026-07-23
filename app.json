@@ -49,6 +49,12 @@
         {
           "locationWhenInUsePermission": "La app necesita tu ubicación para mostrarte el mapa de rastreadores."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "La app necesita la cámara para escanear el código de barras de las reses."
+        }
       ]
     ]
   }
