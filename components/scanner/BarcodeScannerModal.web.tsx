@@ -36,8 +36,6 @@ interface Props {
   titulo?: string;
 }
 
-const Video = (props: Record<string, unknown>) => createElement("video", props);
-
 export function BarcodeScannerModal({
   visible,
   onClose,
@@ -105,16 +103,17 @@ export function BarcodeScannerModal({
         </View>
 
         <View style={styles.videoWrap}>
-          <Video
-            ref={videoRef}
-            muted
-            playsInline
-            style={{
+          {createElement("video", {
+            ref: videoRef,
+            muted: true,
+            playsInline: true,
+            autoPlay: true,
+            style: {
               width: "100%",
               height: "100%",
               objectFit: "cover",
-            }}
-          />
+            },
+          })}
           <View style={styles.overlay} pointerEvents="none">
             <View style={styles.marco} />
             <Text style={styles.ayuda}>
