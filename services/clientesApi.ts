@@ -79,3 +79,24 @@ export async function registrarPagoApi(input: {
   });
   return data.pago;
 }
+
+export async function actualizarPagoApi(
+  id: number,
+  input: {
+    monto?: number;
+    metodo?: MetodoPago;
+    diasCheque?: number;
+    numeroCheque?: string;
+    banco?: string;
+  },
+): Promise<Pago> {
+  const data = await apiRequest<{ pago: Pago }>(`/admin/pagos/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+  return data.pago;
+}
+
+export async function eliminarPagoApi(id: number): Promise<void> {
+  await apiRequest(`/admin/pagos/${id}`, { method: "DELETE" });
+}

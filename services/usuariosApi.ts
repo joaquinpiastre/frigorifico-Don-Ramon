@@ -34,3 +34,7 @@ export async function actualizarUsuarioApi(
   });
   return data.usuario;
 }
+
+export async function eliminarUsuarioApi(id: string): Promise<void> {
+  await apiRequest(`/admin/usuarios/${id}`, { method: 'DELETE' });
+}

@@ -310,3 +310,82 @@ clientesRouter.post("/admin/pagos", requireAuth, async (req, res) => {
   );
   res.json({ pago: rows[0] });
 });
+
+const actualizarPagoSchema = z.object({
+  monto: z.number().positive().optional(),
+  metodo: z.enum(METODOS_PAGO).optional(),
+  diasCheque: z.number().int().positive().optional(),
+  numeroCheque: z.string().trim().min(1).optional(),
+  banco: z.string().trim().min(1).optional(),
+});
+
+// PATCH /admin/pagos/:id — corrige un pago ya registrado (monto, método, datos de cheque)
+clientesRouter.patch(
+  "/admin/pagos/:id",
+  requireAuth,
+  requireRol("admin"),
+  async (req, res) => {
+    const parsed = actualizarPagoSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res
+        .status(400)
+        .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
+      return;
+    }
+    const { monto, metodo, diasCheque, numeroCheque, banco } = parsed.data;
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Id inválido." });
+      return;
+    }
+
+    const { rows } = await pool.query(
+      `update pagos set
+         monto = coalesce($2, monto),
+         metodo = coalesce($3, metodo),
+         dias_cheque = coalesce($4, dias_cheque),
+         numero_cheque = coalesce($5, numero_cheque),
+         banco = coalesce($6, banco)
+       where id = $1
+       returning id, cliente_id as "clienteId", venta_id as "ventaId", monto, metodo,
+                 dias_cheque as "diasCheque", numero_cheque as "numeroCheque", banco, fecha,
+                 registrado_por as "registradoPor"`,
+      [
+        id,
+        monto ?? null,
+        metodo ?? null,
+        diasCheque ?? null,
+        numeroCheque ?? null,
+        banco ?? null,
+      ],
+    );
+    if (rows.length === 0) {
+      res.status(404).json({ error: "No existe un pago con ese id." });
+      return;
+    }
+    res.json({ pago: rows[0] });
+  },
+);
+
+// DELETE /admin/pagos/:id — elimina un pago registrado (ej. cargado por error)
+clientesRouter.delete(
+  "/admin/pagos/:id",
+  requireAuth,
+  requireRol("admin"),
+  async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      res.status(400).json({ error: "Id inválido." });
+      return;
+    }
+    const { rows } = await pool.query(
+      "delete from pagos where id = $1 returning id",
+      [id],
+    );
+    if (rows.length === 0) {
+      res.status(404).json({ error: "No existe un pago con ese id." });
+      return;
+    }
+    res.json({ ok: true });
+  },
+);

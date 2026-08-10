@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { showAlert } from "@/utils/alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -104,11 +104,7 @@ export default function NuevaRes() {
       <Text style={styles.seccion}>Tropa</Text>
       {!creandoLote ? (
         <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 12 }}
-          >
+          <View style={[styles.filaChips, { marginBottom: 12 }]}>
             {lotes.map((lote) => (
               <Pressable
                 key={lote.id}
@@ -125,7 +121,7 @@ export default function NuevaRes() {
                 </Text>
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
           <Button
             label="NUEVA TROPA"
             variant="secondary"

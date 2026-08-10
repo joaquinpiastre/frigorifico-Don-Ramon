@@ -16,7 +16,9 @@ import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
 import {
   actualizarClienteApi,
+  actualizarPagoApi,
   eliminarClienteApi,
+  eliminarPagoApi,
   obtenerClienteApi,
   registrarPagoApi,
 } from "@/services/clientesApi";
@@ -51,6 +53,14 @@ export default function ClienteDetalle() {
   const [registrandoPago, setRegistrandoPago] = useState(false);
   const [eliminando, setEliminando] = useState(false);
   const [cambiandoActivo, setCambiandoActivo] = useState(false);
+
+  const [editandoPagoId, setEditandoPagoId] = useState<number | null>(null);
+  const [editMonto, setEditMonto] = useState("");
+  const [editMetodo, setEditMetodo] = useState<MetodoPago | null>(null);
+  const [editDiasCheque, setEditDiasCheque] = useState("");
+  const [editNumeroCheque, setEditNumeroCheque] = useState("");
+  const [editBanco, setEditBanco] = useState("");
+  const [guardandoEdicionPago, setGuardandoEdicionPago] = useState(false);
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -139,6 +149,76 @@ export default function ClienteDetalle() {
       );
     } finally {
       setEliminando(false);
+    }
+  };
+
+  const empezarEdicionPago = (p: Pago) => {
+    setEditandoPagoId(p.id);
+    setEditMonto(String(p.monto));
+    setEditMetodo(p.metodo);
+    setEditDiasCheque(p.diasCheque ? String(p.diasCheque) : "");
+    setEditNumeroCheque(p.numeroCheque ?? "");
+    setEditBanco(p.banco ?? "");
+  };
+
+  const guardarEdicionPago = async (p: Pago) => {
+    const montoNum = Number(editMonto.replace(",", "."));
+    if (!montoNum || montoNum <= 0) {
+      showAlert("Pago", "Ingresá un monto válido.");
+      return;
+    }
+    if (!editMetodo) {
+      showAlert("Pago", "Elegí la forma de pago.");
+      return;
+    }
+    const diasChequeNum = Number(editDiasCheque);
+    if (editMetodo === "cheque" && (!diasChequeNum || diasChequeNum <= 0)) {
+      showAlert("Pago", "Indicá a cuántos días es el cheque.");
+      return;
+    }
+    if (editMetodo === "cheque" && !editNumeroCheque.trim()) {
+      showAlert("Pago", "Indicá el número de cheque.");
+      return;
+    }
+    if (editMetodo === "cheque" && !editBanco.trim()) {
+      showAlert("Pago", "Indicá el banco del cheque.");
+      return;
+    }
+    setGuardandoEdicionPago(true);
+    try {
+      await actualizarPagoApi(p.id, {
+        monto: montoNum,
+        metodo: editMetodo,
+        diasCheque: editMetodo === "cheque" ? diasChequeNum : undefined,
+        numeroCheque: editMetodo === "cheque" ? editNumeroCheque.trim() : undefined,
+        banco: editMetodo === "cheque" ? editBanco.trim() : undefined,
+      });
+      setEditandoPagoId(null);
+      cargar();
+    } catch (e) {
+      showAlert(
+        "Pago",
+        e instanceof Error ? e.message : "No se pudo actualizar el pago.",
+      );
+    } finally {
+      setGuardandoEdicionPago(false);
+    }
+  };
+
+  const eliminarPago = async (p: Pago) => {
+    const confirmado = await showConfirm(
+      "Eliminar pago",
+      `¿Eliminar el pago de $${p.monto.toFixed(2)}? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    try {
+      await eliminarPagoApi(p.id);
+      cargar();
+    } catch (e) {
+      showAlert(
+        "Pago",
+        e instanceof Error ? e.message : "No se pudo eliminar el pago.",
+      );
     }
   };
 
@@ -280,30 +360,77 @@ export default function ClienteDetalle() {
       {pagos.length === 0 ? (
         <Text style={styles.vacio}>Todavía no registró pagos.</Text>
       ) : (
-        pagos.map((p) => (
-          <View key={p.id} style={styles.card}>
-            <Text style={styles.nombre}>${p.monto.toFixed(2)}</Text>
-            <Text style={styles.label}>
-              {p.metodo ? METODO_PAGO_LABEL[p.metodo] : "Sin especificar"}
-              {p.metodo === "cheque" && p.diasCheque
-                ? ` · a ${p.diasCheque} días`
-                : ""}
-            </Text>
-            {p.metodo === "cheque" && (p.numeroCheque || p.banco) ? (
+        pagos.map((p) =>
+          editandoPagoId === p.id ? (
+            <View key={p.id} style={styles.card}>
+              <Input
+                label="Monto"
+                value={editMonto}
+                onChangeText={setEditMonto}
+                keyboardType="decimal-pad"
+              />
+              <MetodoPagoSelector
+                metodo={editMetodo}
+                onMetodoChange={setEditMetodo}
+                diasCheque={editDiasCheque}
+                onDiasChequeChange={setEditDiasCheque}
+                numeroCheque={editNumeroCheque}
+                onNumeroChequeChange={setEditNumeroCheque}
+                banco={editBanco}
+                onBancoChange={setEditBanco}
+              />
+              <Button
+                label="GUARDAR CAMBIOS"
+                loading={guardandoEdicionPago}
+                onPress={() => void guardarEdicionPago(p)}
+              />
+              <Button
+                label="CANCELAR"
+                variant="secondary"
+                onPress={() => setEditandoPagoId(null)}
+              />
+            </View>
+          ) : (
+            <View key={p.id} style={styles.card}>
+              <Text style={styles.nombre}>${p.monto.toFixed(2)}</Text>
               <Text style={styles.label}>
-                {p.numeroCheque ? `N° ${p.numeroCheque}` : ""}
-                {p.numeroCheque && p.banco ? " · " : ""}
-                {p.banco ?? ""}
+                {p.metodo ? METODO_PAGO_LABEL[p.metodo] : "Sin especificar"}
+                {p.metodo === "cheque" && p.diasCheque
+                  ? ` · a ${p.diasCheque} días`
+                  : ""}
               </Text>
-            ) : null}
-            <Text style={styles.label}>
-              {new Date(p.fecha).toLocaleDateString("es-AR")}
-            </Text>
-            {p.registradoPor ? (
-              <Text style={styles.label}>Registrado por: {p.registradoPor}</Text>
-            ) : null}
-          </View>
-        ))
+              {p.metodo === "cheque" && (p.numeroCheque || p.banco) ? (
+                <Text style={styles.label}>
+                  {p.numeroCheque ? `N° ${p.numeroCheque}` : ""}
+                  {p.numeroCheque && p.banco ? " · " : ""}
+                  {p.banco ?? ""}
+                </Text>
+              ) : null}
+              <Text style={styles.label}>
+                {new Date(p.fecha).toLocaleDateString("es-AR")}
+              </Text>
+              {p.registradoPor ? (
+                <Text style={styles.label}>Registrado por: {p.registradoPor}</Text>
+              ) : null}
+              <View style={styles.filaAcciones}>
+                <Pressable
+                  style={styles.accionBtn}
+                  onPress={() => empezarEdicionPago(p)}
+                >
+                  <Text style={styles.accionTexto}>EDITAR</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.accionBtn}
+                  onPress={() => void eliminarPago(p)}
+                >
+                  <Text style={[styles.accionTexto, styles.accionTextoPeligro]}>
+                    ELIMINAR
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ),
+        )
       )}
 
       <Text style={styles.seccion}>Historial de productos entregados</Text>
@@ -397,4 +524,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   saldoDeudor: { color: COLORS.error },
+  filaAcciones: {
+    flexDirection: "row",
+    gap: 16,
+    marginTop: 8,
+  },
+  accionBtn: { paddingVertical: 4 },
+  accionTexto: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: COLORS.dorado,
+  },
+  accionTextoPeligro: { color: COLORS.error },
 });

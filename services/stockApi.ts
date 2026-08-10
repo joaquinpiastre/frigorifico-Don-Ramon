@@ -87,6 +87,15 @@ export async function listarResesApi(filtros?: {
   return data.reses;
 }
 
+export async function obtenerResApi(id: number): Promise<Res | null> {
+  try {
+    const data = await apiRequest<{ res: Res }>(`/admin/reses/id/${id}`);
+    return data.res;
+  } catch {
+    return null;
+  }
+}
+
 export async function buscarResPorCodigoApi(
   codigo: string,
 ): Promise<Res | null> {

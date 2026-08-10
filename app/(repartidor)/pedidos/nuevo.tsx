@@ -329,19 +329,14 @@ export default function NuevoPedidoRepartidor() {
               {productoSeleccionado.nombre}
             </Text>
 
-            <Input
-              label="Precio"
-              value={precio}
-              onChangeText={setPrecio}
-              keyboardType="decimal-pad"
-            />
-
             {productoSeleccionado.tieneCodigoBarra ? (
               <>
                 <SelectorReses
                   tipo={productoSeleccionado.categoria as Res["tipo"]}
                   productoNombre={productoSeleccionado.nombre}
                   resesDelTipo={resesDelTipo}
+                  precio={precio}
+                  onPrecioChange={setPrecio}
                   onConfirmar={agregarLineasMultiples}
                   onCancelar={cancelarSeleccionProducto}
                 />
@@ -379,6 +374,12 @@ export default function NuevoPedidoRepartidor() {
                       value={nota}
                       onChangeText={setNota}
                       placeholder="Ej: media res, sin hueso…"
+                    />
+                    <Input
+                      label="Precio"
+                      value={precio}
+                      onChangeText={setPrecio}
+                      keyboardType="decimal-pad"
                     />
                     <Button
                       label="AGREGAR LÍNEA SIN STOCK"
@@ -421,6 +422,12 @@ export default function NuevoPedidoRepartidor() {
                   value={nota}
                   onChangeText={setNota}
                   placeholder="Ej: media res, sin hueso…"
+                />
+                <Input
+                  label="Precio"
+                  value={precio}
+                  onChangeText={setPrecio}
+                  keyboardType="decimal-pad"
                 />
                 <Button
                   label="AGREGAR LÍNEA"

@@ -15,7 +15,7 @@ import { COLORS } from "@/constants/colors";
 import {
   actualizarResApi,
   eliminarResApi,
-  listarResesApi,
+  obtenerResApi,
 } from "@/services/stockApi";
 import {
   TIPO_RES_LABEL,
@@ -43,9 +43,8 @@ export default function EditarRes() {
   const [eliminando, setEliminando] = useState(false);
 
   useEffect(() => {
-    listarResesApi()
-      .then((data) => {
-        const encontrada = data.find((r) => r.id === resId) ?? null;
+    obtenerResApi(resId)
+      .then((encontrada) => {
         setRes(encontrada);
         if (encontrada) {
           setGarron(encontrada.garron ?? "");

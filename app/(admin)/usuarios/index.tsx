@@ -2,12 +2,17 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { showAlert } from '@/utils/alert';
+import { showAlert, showConfirm } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
-import { actualizarUsuarioApi, crearUsuarioApi, listarUsuariosApi } from '@/services/usuariosApi';
+import {
+  actualizarUsuarioApi,
+  crearUsuarioApi,
+  eliminarUsuarioApi,
+  listarUsuariosApi,
+} from '@/services/usuariosApi';
 import { useAppStore } from '@/store/useAppStore';
 import type { RolUsuario, UsuarioAdmin } from '@/types';
 
@@ -83,6 +88,24 @@ export default function UsuariosIndex() {
       listarUsuariosApi().then(setUsuarios).catch(() => undefined);
     } catch (e) {
       showAlert('Usuario', e instanceof Error ? e.message : 'No se pudo cambiar el rol.');
+    }
+  };
+
+  const eliminarUsuario = async (u: UsuarioAdmin) => {
+    if (u.id === usuarioActual?.id) {
+      showAlert('Usuario', 'No podés eliminar tu propio usuario.');
+      return;
+    }
+    const confirmado = await showConfirm(
+      'Eliminar usuario',
+      `¿Eliminar a "${u.nombre}"? Esta acción no se puede deshacer.`
+    );
+    if (!confirmado) return;
+    try {
+      await eliminarUsuarioApi(u.id);
+      listarUsuariosApi().then(setUsuarios).catch(() => undefined);
+    } catch (e) {
+      showAlert('Usuario', e instanceof Error ? e.message : 'No se pudo eliminar el usuario.');
     }
   };
 
@@ -180,6 +203,7 @@ export default function UsuariosIndex() {
               variant={u.activo ? 'danger' : 'secondary'}
               onPress={() => void toggleActivo(u)}
             />
+            <Button label="ELIMINAR" variant="danger" onPress={() => void eliminarUsuario(u)} />
           </View>
         )
       )}

@@ -258,6 +258,27 @@ resesRouter.patch(
   },
 );
 
+// GET /admin/reses/id/:id — busca una sola res por su id numérico (evita traer todo el listado)
+resesRouter.get("/admin/reses/id/:id", requireAuth, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    res.status(400).json({ error: "Id inválido." });
+    return;
+  }
+  const { rows } = await pool.query(
+    `select id, lote_id as "loteId", cor, garron, tipo, clasificacion,
+            kilos_ingreso as "kilosIngreso", kilos_disponibles as "kilosDisponibles", estado
+     from reses
+     where id = $1`,
+    [id],
+  );
+  if (rows.length === 0) {
+    res.status(404).json({ error: "No existe una res con ese id." });
+    return;
+  }
+  res.json({ res: rows[0] });
+});
+
 // GET /admin/reses/:codigo — busca una res por el código de barras (Cor) escaneado
 resesRouter.get("/admin/reses/:codigo", requireAuth, async (req, res) => {
   const { rows } = await pool.query(
@@ -299,7 +320,7 @@ resesRouter.delete(
       if ((err as { code?: string }).code === "23503") {
         res.status(409).json({
           error:
-            "No se puede eliminar: esta res ya tiene ventas o pedidos asociados.",
+            "No se puede eliminar: esta res ya tiene una venta registrada (remito antiguo).",
         });
         return;
       }

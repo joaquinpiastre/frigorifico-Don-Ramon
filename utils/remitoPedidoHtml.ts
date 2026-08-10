@@ -1,8 +1,66 @@
 import type { PedidoDetalle } from "@/types";
 
-// Pocas filas: la hoja ahora tiene que entrar dos veces (original + duplicado),
-// así que cada mitad dispone de mucho menos alto.
+export type ModoRemitoPedido = "original" | "original_duplicado";
+
+// Pocas filas: cuando la hoja tiene que entrar dos veces (original + duplicado)
+// cada mitad dispone de mucho menos alto que una hoja de copia única.
 const FILAS_MINIMAS = 6;
+
+// Dos escalas de tipografía: al compartir sale una sola copia (ORIGINAL) y aprovecha
+// la hoja entera, así que puede ser bien grande; al descargar entran las dos copias
+// (original + duplicado) en la misma hoja, así que el tamaño es más ajustado.
+const TAMANOS: Record<
+  ModoRemitoPedido,
+  {
+    leyenda: string;
+    empresaLinea: string;
+    notaTitulo: string;
+    notaCampo: string;
+    direccion: string;
+    campoLabel: string;
+    campoValor: string;
+    itemsTh: string;
+    itemsTd: string;
+    trazabilidad: string;
+    totalLabel: string;
+    totalValor: string;
+    firmaTexto: string;
+    logo: string;
+  }
+> = {
+  original: {
+    leyenda: "13px",
+    empresaLinea: "14px",
+    notaTitulo: "18px",
+    notaCampo: "14px",
+    direccion: "12px",
+    campoLabel: "14px",
+    campoValor: "14px",
+    itemsTh: "13px",
+    itemsTd: "13px",
+    trazabilidad: "11px",
+    totalLabel: "16px",
+    totalValor: "18px",
+    firmaTexto: "12px",
+    logo: "56px",
+  },
+  original_duplicado: {
+    leyenda: "9px",
+    empresaLinea: "10px",
+    notaTitulo: "13px",
+    notaCampo: "10px",
+    direccion: "9px",
+    campoLabel: "10px",
+    campoValor: "10px",
+    itemsTh: "9px",
+    itemsTd: "9px",
+    trazabilidad: "8px",
+    totalLabel: "12px",
+    totalValor: "12px",
+    firmaTexto: "9px",
+    logo: "34px",
+  },
+};
 
 function partesFecha(fechaIso: string): { dd: string; mm: string; yyyy: string } {
   const d = new Date(fechaIso);
@@ -95,7 +153,16 @@ function construirMitad(
 export function construirHtmlRemitoPedido(
   pedido: PedidoDetalle,
   logoBase64: string,
+  modo: ModoRemitoPedido = "original_duplicado",
 ): string {
+  const t = TAMANOS[modo];
+  const cuerpo =
+    modo === "original"
+      ? construirMitad(pedido, logoBase64, "ORIGINAL")
+      : `${construirMitad(pedido, logoBase64, "ORIGINAL")}
+         <div class="corte">✂ CORTAR AQUÍ</div>
+         ${construirMitad(pedido, logoBase64, "DUPLICADO")}`;
+
   return `
     <html>
       <head><meta charset="utf-8" />
@@ -105,7 +172,7 @@ export function construirHtmlRemitoPedido(
         html, body { height: 100%; }
         body { font-family: Helvetica, Arial, sans-serif; color: #1c1c1c; margin: 0; }
         .hoja { display: flex; flex-direction: column; height: 100%; }
-        .mitad { position: relative; flex: 1 1 50%; padding: 6px 4px; overflow: hidden; display: flex; flex-direction: column; }
+        .mitad { position: relative; flex: 1 1 ${modo === "original" ? "100%" : "50%"}; padding: ${modo === "original" ? "10px 8px" : "6px 4px"}; overflow: hidden; display: flex; flex-direction: column; }
         .corte {
           flex: none;
           display: flex; align-items: center; gap: 6px;
@@ -115,45 +182,43 @@ export function construirHtmlRemitoPedido(
         .corte::before, .corte::after { content: ""; flex: 1; border-top: 1px dashed #999; }
         .leyenda {
           position: absolute; top: -2px; right: 2px;
-          font-size: 8px; letter-spacing: 1.5px; font-weight: bold;
-          color: #000; border: 1.2px solid #000; padding: 1px 8px; border-radius: 5px;
+          font-size: ${t.leyenda}; letter-spacing: 1.5px; font-weight: bold;
+          color: #000; border: 1.2px solid #000; padding: 2px 10px; border-radius: 5px;
         }
         .headerTable { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        .logoCell { width: 40px; }
-        .logo { width: 34px; height: 34px; object-fit: contain; border-radius: 50%; border: 1px solid #000; filter: grayscale(100%); }
+        .logoCell { width: ${t.logo}; }
+        .logo { width: ${t.logo}; height: ${t.logo}; object-fit: contain; border-radius: 50%; border: 1px solid #000; filter: grayscale(100%); }
         .empresaCell { padding-left: 8px; vertical-align: middle; }
-        .empresaLinea { margin: 0; font-weight: bold; font-size: 9px; letter-spacing: 0.3px; }
+        .empresaLinea { margin: 0; font-weight: bold; font-size: ${t.empresaLinea}; letter-spacing: 0.3px; }
         .notaCell { text-align: right; vertical-align: middle; }
-        .notaTitulo { font-weight: bold; font-size: 11px; margin: 0 0 2px; }
-        .notaCampo { margin: 0; font-size: 9px; }
+        .notaTitulo { font-weight: bold; font-size: ${t.notaTitulo}; margin: 0 0 2px; }
+        .notaCampo { margin: 0; font-size: ${t.notaCampo}; }
         .notaValor { font-weight: bold; }
-        .direccion { text-align: center; font-size: 8px; margin: 4px 0 2px; }
+        .direccion { text-align: center; font-size: ${t.direccion}; margin: 4px 0 2px; }
         .divisoria { border: none; border-top: 1px solid #000; margin: 2px 0 4px; }
         .campo { display: flex; gap: 4px; align-items: baseline; border-bottom: 1px dotted #999; padding: 1px 2px; margin-bottom: 2px; }
-        .campoLabel { font-weight: bold; font-size: 9px; white-space: nowrap; }
-        .campoValor { font-size: 9px; background: #f2f2f2; flex: 1; padding: 1px 4px; }
-        .campoValorChico { font-size: 9px; background: #f2f2f2; padding: 1px 6px; }
+        .campoLabel { font-weight: bold; font-size: ${t.campoLabel}; white-space: nowrap; }
+        .campoValor { font-size: ${t.campoValor}; background: #f2f2f2; flex: 1; padding: 1px 4px; }
+        .campoValorChico { font-size: ${t.campoValor}; background: #f2f2f2; padding: 1px 6px; }
         .condiciones { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; border-bottom: 1px dotted #999; padding: 1px 2px; }
         .itemsTable { width: 100%; border-collapse: collapse; margin-top: 2px; flex: 1; }
-        .itemsTable th { border: 1px solid #000; background: #000; color: #fff; padding: 2px 4px; font-size: 8px; }
-        .itemsTable td { border: 1px solid #000; background: #fff; padding: 1px 4px; font-size: 8px; height: 11px; }
+        .itemsTable th { border: 1px solid #000; background: #000; color: #fff; padding: 3px 5px; font-size: ${t.itemsTh}; }
+        .itemsTable td { border: 1px solid #000; background: #fff; padding: 2px 5px; font-size: ${t.itemsTd}; height: 15px; }
         .itemsTable td.num { text-align: right; width: 15%; }
         .itemsTable td.desc { text-align: left; }
-        .trazabilidad { font-size: 7px; color: #555; }
+        .trazabilidad { font-size: ${t.trazabilidad}; color: #555; }
         .pieRow { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px; }
         .totalRow { display: flex; align-items: center; gap: 4px; }
-        .totalLabel { font-weight: bold; font-size: 10px; }
-        .totalValor { border: 1px solid #000; background: #f2f2f2; padding: 2px 10px; font-weight: bold; font-size: 10px; min-width: 70px; text-align: right; }
+        .totalLabel { font-weight: bold; font-size: ${t.totalLabel}; }
+        .totalValor { border: 1px solid #000; background: #f2f2f2; padding: 3px 12px; font-weight: bold; font-size: ${t.totalValor}; min-width: 80px; text-align: right; }
         .firma { text-align: center; }
         .firmaLinea { border-top: 1px solid #000; width: 150px; margin: 0 auto 2px; }
-        .firmaTexto { font-size: 8px; letter-spacing: 0.5px; margin: 0; }
+        .firmaTexto { font-size: ${t.firmaTexto}; letter-spacing: 0.5px; margin: 0; }
       </style>
       </head>
       <body>
         <div class="hoja">
-          ${construirMitad(pedido, logoBase64, "ORIGINAL")}
-          <div class="corte">✂ CORTAR AQUÍ</div>
-          ${construirMitad(pedido, logoBase64, "DUPLICADO")}
+          ${cuerpo}
         </div>
       </body>
     </html>

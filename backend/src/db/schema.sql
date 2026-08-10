@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS pagos (
   dias_cheque INTEGER,
   numero_cheque TEXT,
   banco TEXT,
+  registrado_por TEXT,
   fecha TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -155,6 +156,7 @@ CREATE TABLE IF NOT EXISTS pagos (
 ALTER TABLE pagos ADD COLUMN IF NOT EXISTS dias_cheque INTEGER;
 ALTER TABLE pagos ADD COLUMN IF NOT EXISTS numero_cheque TEXT;
 ALTER TABLE pagos ADD COLUMN IF NOT EXISTS banco TEXT;
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS registrado_por TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_reses_estado ON reses (estado);
 CREATE INDEX IF NOT EXISTS idx_venta_items_venta ON venta_items (venta_id);
@@ -266,3 +268,9 @@ ALTER TABLE pedido_items ADD COLUMN IF NOT EXISTS nota TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_pedido_items_pedido ON pedido_items (pedido_id);
 CREATE INDEX IF NOT EXISTS idx_pedido_items_producto ON pedido_items (producto_id);
+
+-- Permite eliminar una res del stock aunque ya tenga pedidos asociados: se conserva la línea
+-- del pedido (garrón/tropa/nota quedan denormalizados ahí) pero el vínculo a la res se limpia.
+ALTER TABLE pedido_items DROP CONSTRAINT IF EXISTS pedido_items_res_id_fkey;
+ALTER TABLE pedido_items ADD CONSTRAINT pedido_items_res_id_fkey
+  FOREIGN KEY (res_id) REFERENCES reses(id) ON DELETE SET NULL;

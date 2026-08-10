@@ -6,7 +6,7 @@ import { ActivityIndicator, Platform, StyleSheet, Text, View } from 'react-nativ
 import { showAlert } from '@/utils/alert';
 import { imprimirHtmlEnNuevaVentana } from '@/utils/imprimirHtml';
 import { obtenerLogoBase64 } from '@/utils/logo';
-import { construirHtmlRemitoPedido } from '@/utils/remitoPedidoHtml';
+import { construirHtmlRemitoPedido, type ModoRemitoPedido } from '@/utils/remitoPedidoHtml';
 import { Button } from '@/components/ui/Button';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
@@ -17,7 +17,8 @@ export default function RemitoPedidoOperador() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [pedido, setPedido] = useState<PedidoDetalle | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [generando, setGenerando] = useState(false);
+  const [generandoCompartir, setGenerandoCompartir] = useState(false);
+  const [generandoDescargar, setGenerandoDescargar] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -27,12 +28,15 @@ export default function RemitoPedidoOperador() {
       .finally(() => setCargando(false));
   }, [id]);
 
-  const compartirRemito = async () => {
+  const generarRemito = async (
+    modo: ModoRemitoPedido,
+    setGenerando: (v: boolean) => void,
+  ) => {
     if (!pedido) return;
     setGenerando(true);
     try {
       const logoBase64 = await obtenerLogoBase64();
-      const html = construirHtmlRemitoPedido(pedido, logoBase64);
+      const html = construirHtmlRemitoPedido(pedido, logoBase64, modo);
       if (Platform.OS === 'web') {
         const abierto = imprimirHtmlEnNuevaVentana(html);
         if (!abierto) {
@@ -56,6 +60,9 @@ export default function RemitoPedidoOperador() {
       setGenerando(false);
     }
   };
+
+  const compartirRemito = () => generarRemito('original', setGenerandoCompartir);
+  const descargarRemito = () => generarRemito('original_duplicado', setGenerandoDescargar);
 
   if (cargando) {
     return (
@@ -93,9 +100,15 @@ export default function RemitoPedidoOperador() {
         <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
       </View>
       <Button
-        label="COMPARTIR / DESCARGAR REMITO"
-        loading={generando}
+        label="COMPARTIR REMITO (ORIGINAL)"
+        loading={generandoCompartir}
         onPress={() => void compartirRemito()}
+      />
+      <Button
+        label="DESCARGAR (ORIGINAL Y DUPLICADO)"
+        variant="secondary"
+        loading={generandoDescargar}
+        onPress={() => void descargarRemito()}
       />
     </Screen>
   );

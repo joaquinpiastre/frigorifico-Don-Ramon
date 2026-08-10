@@ -19,6 +19,8 @@ interface Props {
   tipo: TipoRes;
   productoNombre: string;
   resesDelTipo: Res[];
+  precio: string;
+  onPrecioChange: (valor: string) => void;
   onConfirmar: (seleccion: { res: Res; cantidad: number }[]) => void;
   onCancelar: () => void;
 }
@@ -27,6 +29,8 @@ export function SelectorReses({
   tipo,
   productoNombre,
   resesDelTipo,
+  precio,
+  onPrecioChange,
   onConfirmar,
   onCancelar,
 }: Props) {
@@ -209,6 +213,13 @@ export function SelectorReses({
           ))}
         </View>
       ) : null}
+
+      <Input
+        label="Precio"
+        value={precio}
+        onChangeText={onPrecioChange}
+        keyboardType="decimal-pad"
+      />
 
       <Button
         label={`AGREGAR AL PEDIDO${resesSeleccionadas.length > 0 ? ` (${resesSeleccionadas.length})` : ""}`}

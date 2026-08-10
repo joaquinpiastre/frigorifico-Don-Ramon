@@ -86,3 +86,24 @@ usuariosRouter.patch('/admin/usuarios/:id', requireAuth, requireAdmin, async (re
   }
   res.json({ usuario: rows[0] });
 });
+
+// DELETE /admin/usuarios/:id — elimina un usuario creado por el administrador
+usuariosRouter.delete('/admin/usuarios/:id', requireAuth, requireAdmin, async (req, res) => {
+  const id = String(req.params.id).toLowerCase();
+  try {
+    const { rows } = await pool.query('delete from usuarios where id = $1 returning id', [id]);
+    if (rows.length === 0) {
+      res.status(404).json({ error: 'Usuario no encontrado.' });
+      return;
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    if ((err as { code?: string }).code === '23503') {
+      res.status(409).json({
+        error: 'No se puede eliminar: este usuario tiene pedidos asignados. Desactivalo en su lugar.',
+      });
+      return;
+    }
+    throw err;
+  }
+});
