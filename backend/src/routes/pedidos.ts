@@ -437,11 +437,11 @@ async function cambiarEstadoPedido(
   }
 }
 
-// PATCH /pedidos/:id/armar — el operador separó físicamente la mercadería; descuenta stock
+// PATCH /pedidos/:id/armar — el operador (o repartidor) separó físicamente la mercadería; descuenta stock
 pedidosRouter.patch(
   "/pedidos/:id/armar",
   requireAuth,
-  requireRol("operador", "admin"),
+  requireRol("operador", "admin", "repartidor"),
   async (req, res) => {
     const id = Number(req.params.id);
     const { status, body } = await cambiarEstadoPedido(
@@ -574,7 +574,7 @@ const repesajeSchema = z.object({ cantidad: z.number().positive() });
 pedidosRouter.patch(
   "/pedidos/:id/items/:itemId/repesar",
   requireAuth,
-  requireRol("operador", "admin"),
+  requireRol("operador", "admin", "repartidor"),
   async (req, res) => {
     const pedidoId = Number(req.params.id);
     const itemId = Number(req.params.itemId);

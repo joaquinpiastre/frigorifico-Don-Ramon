@@ -16,6 +16,24 @@ export default function RepartidorHome() {
         onPress={() => router.push('/(repartidor)/pedidos')}
       />
       <Button
+        label="PEDIDOS PARA ARMAR"
+        variant="secondary"
+        iconLeft={<Ionicons name="list-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(repartidor)/pedidos/armar')}
+      />
+      <Button
+        label="PEDIDOS PARA CARGAR A LA CAMIONETA"
+        variant="secondary"
+        iconLeft={<Ionicons name="car-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(repartidor)/pedidos/cargar')}
+      />
+      <Button
+        label="RECEPCIÓN RÁPIDA"
+        variant="secondary"
+        iconLeft={<Ionicons name="barcode-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(repartidor)/recepcion')}
+      />
+      <Button
         label="NUEVO PEDIDO"
         variant="secondary"
         iconLeft={<Ionicons name="add-circle-outline" size={18} color={COLORS.negro} />}

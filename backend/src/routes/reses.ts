@@ -126,7 +126,7 @@ const resSchema = z.object({
 resesRouter.post(
   "/admin/reses",
   requireAuth,
-  requireRol("operador", "admin"),
+  requireRol("operador", "admin", "repartidor"),
   async (req, res) => {
     const parsed = resSchema.safeParse(req.body);
     if (!parsed.success) {

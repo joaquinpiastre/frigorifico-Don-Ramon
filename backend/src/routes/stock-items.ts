@@ -15,7 +15,7 @@ const itemStockSchema = z.object({
 stockItemsRouter.post(
   "/stock-items",
   requireAuth,
-  requireRol("operador", "admin"),
+  requireRol("operador", "admin", "repartidor"),
   async (req, res) => {
     const parsed = itemStockSchema.safeParse(req.body);
     if (!parsed.success) {
