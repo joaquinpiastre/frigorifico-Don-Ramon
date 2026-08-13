@@ -29,35 +29,35 @@ const TAMANOS: Record<
   }
 > = {
   original: {
-    leyenda: "13px",
-    empresaLinea: "14px",
-    notaTitulo: "18px",
-    notaCampo: "14px",
-    direccion: "12px",
-    campoLabel: "14px",
-    campoValor: "14px",
-    itemsTh: "13px",
-    itemsTd: "13px",
-    trazabilidad: "11px",
-    totalLabel: "16px",
-    totalValor: "18px",
-    firmaTexto: "12px",
+    leyenda: "14px",
+    empresaLinea: "15px",
+    notaTitulo: "20px",
+    notaCampo: "16px",
+    direccion: "13px",
+    campoLabel: "16px",
+    campoValor: "17px",
+    itemsTh: "15px",
+    itemsTd: "17px",
+    trazabilidad: "13px",
+    totalLabel: "18px",
+    totalValor: "22px",
+    firmaTexto: "13px",
     logo: "56px",
   },
   original_duplicado: {
-    leyenda: "9px",
-    empresaLinea: "10px",
-    notaTitulo: "13px",
-    notaCampo: "10px",
-    direccion: "9px",
-    campoLabel: "10px",
-    campoValor: "10px",
-    itemsTh: "9px",
-    itemsTd: "9px",
-    trazabilidad: "8px",
-    totalLabel: "12px",
-    totalValor: "12px",
-    firmaTexto: "9px",
+    leyenda: "10px",
+    empresaLinea: "11px",
+    notaTitulo: "15px",
+    notaCampo: "11px",
+    direccion: "10px",
+    campoLabel: "12px",
+    campoValor: "13px",
+    itemsTh: "11px",
+    itemsTd: "12px",
+    trazabilidad: "10px",
+    totalLabel: "13px",
+    totalValor: "15px",
+    firmaTexto: "10px",
     logo: "34px",
   },
 };
@@ -76,16 +76,16 @@ function construirFilas(pedido: PedidoDetalle): string {
     .map((item) => {
       const trazabilidad = item.garron ? `Garrón ${item.garron}` : "";
       return `
-        <tr>
-          <td class="num">${item.cantidad}</td>
-          <td class="desc">${item.productoNombre}${trazabilidad ? `<div class="trazabilidad">${trazabilidad}</div>` : ""}${item.nota ? `<div class="trazabilidad">${item.nota}</div>` : ""}</td>
-          <td class="num">$${item.precio.toFixed(2)}</td>
-          <td class="num">$${(item.cantidad * item.precio).toFixed(2)}</td>
-        </tr>`;
+        <div class="fila">
+          <span class="cant">${item.cantidad}</span>
+          <span class="desc">${item.productoNombre}${trazabilidad ? `<div class="trazabilidad">${trazabilidad}</div>` : ""}${item.nota ? `<div class="trazabilidad">${item.nota}</div>` : ""}</span>
+          <span class="precio">$${item.precio.toFixed(2)}</span>
+          <span class="importe">$${(item.cantidad * item.precio).toFixed(2)}</span>
+        </div>`;
     })
     .join("");
 
-  const filaVacia = '<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>';
+  const filaVacia = '<div class="fila filaVacia">&nbsp;</div>';
   const vacias = Math.max(0, FILAS_MINIMAS - pedido.items.length);
   return filas + filaVacia.repeat(vacias);
 }
@@ -116,25 +116,27 @@ function construirMitad(
       </table>
 
       <p class="direccion">Espínola 589 · Tel.: 2604 578682 · San Rafael - Mza.</p>
-      <hr class="divisoria" />
 
       <div class="campo">
-        <span class="campoLabel">Señor/es:</span>
+        <span class="campoLabel">Señor/es</span>
         <span class="campoValor">#${pedido.clienteNumero} — ${pedido.clienteNombre}${pedido.clienteRazonSocial ? ` (${pedido.clienteRazonSocial})` : ""}</span>
       </div>
-      <div class="condiciones">
-        <span class="campoLabel">Domicilio:</span>
+      <div class="campo">
+        <span class="campoLabel">Domicilio</span>
         <span class="campoValor">${pedido.clienteDireccion ?? ""}</span>
-        <span class="campoLabel">C.U.I.T:</span>
-        <span class="campoValorChico">${pedido.clienteCuit ?? ""}</span>
+      </div>
+      <div class="campo">
+        <span class="campoLabel">C.U.I.T.</span>
+        <span class="campoValor">${pedido.clienteCuit ?? ""}</span>
       </div>
 
-      <table class="itemsTable">
-        <thead>
-          <tr><th>PESO</th><th>DESCRIPCION</th><th>P. Unit.</th><th>IMPORTE</th></tr>
-        </thead>
-        <tbody>${construirFilas(pedido)}</tbody>
-      </table>
+      <div class="itemsHead">
+        <span class="cant">CANT.</span>
+        <span class="desc">DESCRIPCIÓN</span>
+        <span class="precio">P. UNIT.</span>
+        <span class="importe">IMPORTE</span>
+      </div>
+      <div class="items">${construirFilas(pedido)}</div>
 
       <div class="pieRow">
         <div class="firma">
@@ -142,8 +144,8 @@ function construirMitad(
           <p class="firmaTexto">FIRMA</p>
         </div>
         <div class="totalRow">
-          <span class="totalLabel">$</span>
-          <span class="totalValor">${total.toFixed(2)}</span>
+          <span class="totalLabel">TOTAL</span>
+          <span class="totalValor">$${total.toFixed(2)}</span>
         </div>
       </div>
     </div>
@@ -194,23 +196,23 @@ export function construirHtmlRemitoPedido(
         .notaTitulo { font-weight: bold; font-size: ${t.notaTitulo}; margin: 0 0 2px; }
         .notaCampo { margin: 0; font-size: ${t.notaCampo}; }
         .notaValor { font-weight: bold; }
-        .direccion { text-align: center; font-size: ${t.direccion}; margin: 4px 0 2px; }
-        .divisoria { border: none; border-top: 1px solid #000; margin: 2px 0 4px; }
-        .campo { display: flex; gap: 4px; align-items: baseline; border-bottom: 1px dotted #999; padding: 1px 2px; margin-bottom: 2px; }
-        .campoLabel { font-weight: bold; font-size: ${t.campoLabel}; white-space: nowrap; }
-        .campoValor { font-size: ${t.campoValor}; background: #f2f2f2; flex: 1; padding: 1px 4px; }
-        .campoValorChico { font-size: ${t.campoValor}; background: #f2f2f2; padding: 1px 6px; }
-        .condiciones { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; flex-wrap: wrap; border-bottom: 1px dotted #999; padding: 1px 2px; }
-        .itemsTable { width: 100%; border-collapse: collapse; margin-top: 2px; flex: 1; }
-        .itemsTable th { border: 1px solid #000; background: #000; color: #fff; padding: 3px 5px; font-size: ${t.itemsTh}; }
-        .itemsTable td { border: 1px solid #000; background: #fff; padding: 2px 5px; font-size: ${t.itemsTd}; height: 15px; }
-        .itemsTable td.num { text-align: right; width: 15%; }
-        .itemsTable td.desc { text-align: left; }
-        .trazabilidad { font-size: ${t.trazabilidad}; color: #555; }
-        .pieRow { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 4px; }
-        .totalRow { display: flex; align-items: center; gap: 4px; }
-        .totalLabel { font-weight: bold; font-size: ${t.totalLabel}; }
-        .totalValor { border: 1px solid #000; background: #f2f2f2; padding: 3px 12px; font-weight: bold; font-size: ${t.totalValor}; min-width: 80px; text-align: right; }
+        .direccion { text-align: center; font-size: ${t.direccion}; margin: 4px 0 8px; padding-bottom: 6px; border-bottom: 1px solid #000; }
+        .campo { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+        .campoLabel { font-weight: bold; font-size: ${t.campoLabel}; white-space: nowrap; color: #444; }
+        .campoValor { font-size: ${t.campoValor}; flex: 1; border-bottom: 1px solid #999; padding-bottom: 2px; font-weight: 600; }
+        .itemsHead { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-bottom: 4px; border-bottom: 2px solid #000; font-weight: bold; font-size: ${t.itemsTh}; letter-spacing: 0.5px; color: #444; }
+        .items { flex: 1; }
+        .fila { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #ddd; font-size: ${t.itemsTd}; }
+        .filaVacia { min-height: 1.6em; color: transparent; }
+        .cant { width: 12%; text-align: center; }
+        .desc { flex: 1; text-align: left; font-weight: 600; }
+        .precio { width: 18%; text-align: right; }
+        .importe { width: 20%; text-align: right; font-weight: 600; }
+        .trazabilidad { font-size: ${t.trazabilidad}; color: #555; font-weight: normal; }
+        .pieRow { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 10px; }
+        .totalRow { display: flex; align-items: baseline; gap: 8px; border-top: 2px solid #000; padding-top: 4px; }
+        .totalLabel { font-weight: bold; font-size: ${t.totalLabel}; letter-spacing: 0.5px; color: #444; }
+        .totalValor { font-weight: bold; font-size: ${t.totalValor}; min-width: 80px; text-align: right; }
         .firma { text-align: center; }
         .firmaLinea { border-top: 1px solid #000; width: 150px; margin: 0 auto 2px; }
         .firmaTexto { font-size: ${t.firmaTexto}; letter-spacing: 0.5px; margin: 0; }
