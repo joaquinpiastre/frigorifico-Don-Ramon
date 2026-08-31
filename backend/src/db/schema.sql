@@ -158,6 +158,14 @@ ALTER TABLE pagos ADD COLUMN IF NOT EXISTS numero_cheque TEXT;
 ALTER TABLE pagos ADD COLUMN IF NOT EXISTS banco TEXT;
 ALTER TABLE pagos ADD COLUMN IF NOT EXISTS registrado_por TEXT;
 
+-- Permite eliminar una res del stock aunque ya tenga ventas asociadas: se conserva la línea
+-- de la venta (descripción/kilos/precio/importe quedan denormalizados ahí) pero el vínculo
+-- a la res se limpia.
+ALTER TABLE venta_items ALTER COLUMN res_id DROP NOT NULL;
+ALTER TABLE venta_items DROP CONSTRAINT IF EXISTS venta_items_res_id_fkey;
+ALTER TABLE venta_items ADD CONSTRAINT venta_items_res_id_fkey
+  FOREIGN KEY (res_id) REFERENCES reses(id) ON DELETE SET NULL;
+
 CREATE INDEX IF NOT EXISTS idx_reses_estado ON reses (estado);
 CREATE INDEX IF NOT EXISTS idx_venta_items_venta ON venta_items (venta_id);
 CREATE INDEX IF NOT EXISTS idx_venta_items_res ON venta_items (res_id);

@@ -320,7 +320,7 @@ resesRouter.delete(
       if ((err as { code?: string }).code === "23503") {
         res.status(409).json({
           error:
-            "No se puede eliminar: esta res ya tiene una venta registrada (remito antiguo).",
+            "No se puede eliminar: esta res está referenciada en otro registro.",
         });
         return;
       }

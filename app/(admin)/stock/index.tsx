@@ -108,11 +108,6 @@ export default function StockIndex() {
         label="ESCANEAR ETIQUETA"
         onPress={() => router.push("/(admin)/stock/escanear")}
       />
-      <Button
-        label="ALTA MANUAL"
-        variant="secondary"
-        onPress={() => router.push("/(admin)/stock/nueva-res")}
-      />
 
       <Input
         placeholder="Buscar por Cor, garrón, clasificación o producto…"

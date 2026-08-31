@@ -43,6 +43,14 @@ export default function AdminHome() {
         onPress={() => router.push("/(admin)/stock")}
       />
       <Button
+        label="RECEPCIÓN RÁPIDA"
+        variant="secondary"
+        iconLeft={
+          <Ionicons name="barcode-outline" size={18} color={COLORS.negro} />
+        }
+        onPress={() => router.push("/(operador)/recepcion")}
+      />
+      <Button
         label="CLIENTES"
         variant="secondary"
         iconLeft={
