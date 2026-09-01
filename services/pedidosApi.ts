@@ -23,10 +23,14 @@ export async function crearPedidoApi(input: {
 export async function listarPedidosApi(filtros?: {
   estado?: EstadoPedido;
   repartidor?: string;
+  desde?: string;
+  hasta?: string;
 }): Promise<Pedido[]> {
   const params = new URLSearchParams();
   if (filtros?.estado) params.set("estado", filtros.estado);
   if (filtros?.repartidor) params.set("repartidor", filtros.repartidor);
+  if (filtros?.desde) params.set("desde", filtros.desde);
+  if (filtros?.hasta) params.set("hasta", filtros.hasta);
   const query = params.toString() ? `?${params.toString()}` : "";
   const data = await apiRequest<{ pedidos: Pedido[] }>(`/pedidos${query}`);
   return data.pedidos;

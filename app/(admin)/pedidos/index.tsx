@@ -4,22 +4,71 @@ import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { listarPedidosApi } from '@/services/pedidosApi';
+import { formatoFechaCorta } from '@/utils/fecha';
 import { ESTADO_PEDIDO_LABEL, type EstadoPedido, type Pedido } from '@/types';
 
 const FILTROS: (EstadoPedido | 'todos')[] = ['todos', 'pendiente', 'armado', 'cargado', 'entregado'];
 
+function aFechaCorta(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const RANGOS_RAPIDOS = ['todas', 'hoy', 'ayer', 'semana', 'mes'] as const;
+type RangoRapido = (typeof RANGOS_RAPIDOS)[number];
+const RANGO_RAPIDO_LABEL: Record<RangoRapido, string> = {
+  todas: 'Todas las fechas',
+  hoy: 'Hoy',
+  ayer: 'Ayer',
+  semana: 'Últimos 7 días',
+  mes: 'Este mes',
+};
+
 export default function PedidosIndex() {
   const [filtro, setFiltro] = useState<EstadoPedido | 'todos'>('todos');
+  const [rangoRapido, setRangoRapido] = useState<RangoRapido>('todas');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
 
+  const elegirRango = (rango: RangoRapido) => {
+    setRangoRapido(rango);
+    const hoy = new Date();
+    if (rango === 'todas') {
+      setDesde('');
+      setHasta('');
+    } else if (rango === 'hoy') {
+      setDesde(aFechaCorta(hoy));
+      setHasta(aFechaCorta(hoy));
+    } else if (rango === 'ayer') {
+      const ayer = new Date(hoy);
+      ayer.setDate(ayer.getDate() - 1);
+      setDesde(aFechaCorta(ayer));
+      setHasta(aFechaCorta(ayer));
+    } else if (rango === 'semana') {
+      const hace7 = new Date(hoy);
+      hace7.setDate(hace7.getDate() - 6);
+      setDesde(aFechaCorta(hace7));
+      setHasta(aFechaCorta(hoy));
+    } else if (rango === 'mes') {
+      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+      setDesde(aFechaCorta(inicioMes));
+      setHasta(aFechaCorta(hoy));
+    }
+  };
+
   const cargar = useCallback(() => {
-    listarPedidosApi(filtro === 'todos' ? undefined : { estado: filtro })
+    listarPedidosApi({
+      estado: filtro === 'todos' ? undefined : filtro,
+      desde: desde.trim() || undefined,
+      hasta: hasta.trim() || undefined,
+    })
       .then(setPedidos)
       .catch(() => setPedidos([]));
-  }, [filtro]);
+  }, [filtro, desde, hasta]);
 
   useFocusEffect(cargar);
 
@@ -40,6 +89,47 @@ export default function PedidosIndex() {
         ))}
       </View>
 
+      <Text style={styles.seccion}>Fecha</Text>
+      <View style={styles.fila}>
+        {RANGOS_RAPIDOS.map((r) => (
+          <Pressable
+            key={r}
+            style={[styles.chip, rangoRapido === r && styles.chipActivo]}
+            onPress={() => elegirRango(r)}
+          >
+            <Text style={[styles.chipTexto, rangoRapido === r && styles.chipTextoActivo]}>
+              {RANGO_RAPIDO_LABEL[r]}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.filaFechas}>
+        <View style={{ flex: 1 }}>
+          <Input
+            label="Desde"
+            value={desde}
+            onChangeText={(v) => {
+              setDesde(v);
+              setRangoRapido('todas');
+            }}
+            placeholder="AAAA-MM-DD"
+            autoCapitalize="none"
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Input
+            label="Hasta"
+            value={hasta}
+            onChangeText={(v) => {
+              setHasta(v);
+              setRangoRapido('todas');
+            }}
+            placeholder="AAAA-MM-DD"
+            autoCapitalize="none"
+          />
+        </View>
+      </View>
+
       {pedidos.length === 0 ? <Text style={styles.vacio}>No hay pedidos para este filtro.</Text> : null}
       {pedidos.map((p) => {
         const total = p.total ?? 0;
@@ -48,7 +138,7 @@ export default function PedidosIndex() {
           <Pressable key={p.id} style={styles.card} onPress={() => router.push(`/(admin)/pedidos/${p.id}`)}>
             <Text style={styles.cliente}>{p.clienteNombre}</Text>
             <Text style={styles.sub}>
-              {ESTADO_PEDIDO_LABEL[p.estado]} · Repartidor: {p.repartidorNombre ?? p.repartidor}
+              {formatoFechaCorta(p.fecha)} · {ESTADO_PEDIDO_LABEL[p.estado]} · Repartidor: {p.repartidorNombre ?? p.repartidor}
             </Text>
             {p.estado === "entregado" ? (
               <Text
@@ -77,6 +167,8 @@ export default function PedidosIndex() {
 
 const styles = StyleSheet.create({
   fila: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 10 },
+  filaFechas: { flexDirection: 'row', gap: 8 },
+  seccion: { fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: COLORS.grisSecundario, marginTop: 4 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,

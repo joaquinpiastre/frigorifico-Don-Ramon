@@ -90,12 +90,17 @@ pedidosRouter.post(
   },
 );
 
-// GET /pedidos?estado=&repartidor= — listado filtrable
+// GET /pedidos?estado=&repartidor=&desde=&hasta= — listado filtrable
+// desde/hasta son fechas AAAA-MM-DD (inclusive) que filtran por la fecha de creación del pedido.
 pedidosRouter.get("/pedidos", requireAuth, async (req, res) => {
   const estado =
     typeof req.query.estado === "string" ? req.query.estado : undefined;
   const repartidor =
     typeof req.query.repartidor === "string" ? req.query.repartidor : undefined;
+  const desde =
+    typeof req.query.desde === "string" ? req.query.desde : undefined;
+  const hasta =
+    typeof req.query.hasta === "string" ? req.query.hasta : undefined;
 
   const { rows } = await pool.query(
     `select p.id, p.cliente_id as "clienteId", c.nombre as "clienteNombre",
@@ -116,8 +121,10 @@ pedidosRouter.get("/pedidos", requireAuth, async (req, res) => {
      ) pg on pg.pedido_id = p.id
      where ($1::text is null or p.estado = $1)
        and ($2::text is null or p.repartidor = $2)
+       and ($3::date is null or p.fecha::date >= $3::date)
+       and ($4::date is null or p.fecha::date <= $4::date)
      order by p.fecha desc`,
-    [estado ?? null, repartidor ?? null],
+    [estado ?? null, repartidor ?? null, desde ?? null, hasta ?? null],
   );
   res.json({
     pedidos: rows.map((r) => ({
