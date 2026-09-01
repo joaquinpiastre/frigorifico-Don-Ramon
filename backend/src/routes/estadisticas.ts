@@ -35,8 +35,11 @@ estadisticasRouter.get(
        from reses where estado = 'en_stock'`,
       ),
       pool.query<{ id: number; nombre: string; saldo: string }>(
-        `select c.id, c.nombre, coalesce(pe.total, 0) - coalesce(pg.total, 0) as saldo
+        `select c.id, c.nombre,
+              coalesce(c.saldo_inicial, 0) + coalesce(v.total, 0) + coalesce(pe.total, 0) - coalesce(pg.total, 0) as saldo
        from clientes c
+       left join (select cliente_id, sum(total_importe) as total from ventas group by cliente_id) v
+         on v.cliente_id = c.id
        left join (
          select ped.cliente_id, sum(pi.cantidad * pi.precio) as total
          from pedidos ped

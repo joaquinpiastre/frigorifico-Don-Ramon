@@ -21,6 +21,7 @@ export async function crearClienteApi(input: {
   condicionIva?: CondicionIva;
   telefono?: string;
   direccion?: string;
+  saldoInicial?: number;
 }): Promise<Cliente> {
   const data = await apiRequest<{ cliente: Cliente }>("/admin/clientes", {
     method: "POST",
@@ -39,6 +40,7 @@ export async function actualizarClienteApi(
     telefono?: string;
     direccion?: string;
     activo?: boolean;
+    saldoInicial?: number;
   },
 ): Promise<Cliente> {
   const data = await apiRequest<{ cliente: Cliente }>(`/admin/clientes/${id}`, {
@@ -67,6 +69,7 @@ export async function eliminarClienteApi(id: number): Promise<void> {
 export async function registrarPagoApi(input: {
   clienteId: number;
   ventaId?: number;
+  pedidoId?: number;
   monto: number;
   metodo?: MetodoPago;
   diasCheque?: number;

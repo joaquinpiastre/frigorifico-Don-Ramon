@@ -99,16 +99,33 @@ pedidosRouter.get("/pedidos", requireAuth, async (req, res) => {
 
   const { rows } = await pool.query(
     `select p.id, p.cliente_id as "clienteId", c.nombre as "clienteNombre",
-            p.repartidor, u.nombre as "repartidorNombre", p.estado, p.fecha
+            p.repartidor, u.nombre as "repartidorNombre", p.estado, p.fecha,
+            p.entregado_en as "entregadoEn",
+            coalesce(pi.total, 0) as total,
+            coalesce(pg.total, 0) as "montoPagado"
      from pedidos p
      join clientes c on c.id = p.cliente_id
      left join usuarios u on u.id = p.repartidor
+     left join (
+       select pedido_id, sum(cantidad * precio) as total
+       from pedido_items group by pedido_id
+     ) pi on pi.pedido_id = p.id
+     left join (
+       select pedido_id, sum(monto) as total
+       from pagos where pedido_id is not null group by pedido_id
+     ) pg on pg.pedido_id = p.id
      where ($1::text is null or p.estado = $1)
        and ($2::text is null or p.repartidor = $2)
      order by p.fecha desc`,
     [estado ?? null, repartidor ?? null],
   );
-  res.json({ pedidos: rows });
+  res.json({
+    pedidos: rows.map((r) => ({
+      ...r,
+      total: Number(r.total),
+      montoPagado: Number(r.montoPagado),
+    })),
+  });
 });
 
 // GET /pedidos/:id — detalle con líneas
@@ -123,7 +140,7 @@ pedidosRouter.get("/pedidos/:id", requireAuth, async (req, res) => {
     `select p.id, p.numero_remito as "numeroRemito", p.cliente_id as "clienteId", c.nombre as "clienteNombre",
             c.numero_cliente as "clienteNumero", c.telefono as "clienteTelefono", c.direccion as "clienteDireccion",
             c.razon_social as "clienteRazonSocial", c.cuit as "clienteCuit", c.condicion_iva as "clienteCondicionIva",
-            p.repartidor, u.nombre as "repartidorNombre", p.estado, p.fecha
+            p.repartidor, u.nombre as "repartidorNombre", p.estado, p.fecha, p.entregado_en as "entregadoEn"
      from pedidos p
      join clientes c on c.id = p.cliente_id
      left join usuarios u on u.id = p.repartidor
@@ -145,7 +162,18 @@ pedidosRouter.get("/pedidos/:id", requireAuth, async (req, res) => {
     [id],
   );
 
-  res.json({ pedido: pedidoResult.rows[0], items: items.rows });
+  const pagos = await pool.query(
+    `select monto, metodo, dias_cheque as "diasCheque", numero_cheque as "numeroCheque",
+            banco, fecha
+     from pagos where pedido_id = $1 order by fecha`,
+    [id],
+  );
+
+  res.json({
+    pedido: pedidoResult.rows[0],
+    items: items.rows,
+    pagos: pagos.rows,
+  });
 });
 
 const editarPedidoSchema = z.object({
@@ -153,11 +181,13 @@ const editarPedidoSchema = z.object({
   items: z.array(itemSchema).min(1),
 });
 
-// PATCH /pedidos/:id — edita cliente asignado/ítems de un pedido aún no armado
+// PATCH /pedidos/:id — edita cliente asignado/ítems de un pedido, en cualquier estado.
+// Si el pedido ya había descontado stock (estado != pendiente), se devuelve el stock de
+// los ítems viejos y se vuelve a descontar según los ítems nuevos, para que quede consistente.
 pedidosRouter.patch(
   "/pedidos/:id",
   requireAuth,
-  requireRol("operador", "admin"),
+  requireRol("operador", "admin", "repartidor"),
   async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
@@ -186,20 +216,28 @@ pedidosRouter.patch(
         res.status(404).json({ error: "Pedido no encontrado." });
         return;
       }
-      if (rows[0].estado !== "pendiente") {
-        await client.query("ROLLBACK");
-        res.status(409).json({
-          error:
-            'Solo se puede editar un pedido en estado "pendiente" (aún no armado).',
-        });
-        return;
-      }
+      const estadoActual = rows[0].estado;
 
       if (repartidor) {
         await client.query("update pedidos set repartidor = $2 where id = $1", [
           id,
           repartidor,
         ]);
+      }
+
+      if (estadoActual !== "pendiente") {
+        const { rows: itemsViejos } = await client.query(
+          `select producto_id as "productoId", res_id as "resId", cantidad
+           from pedido_items where pedido_id = $1`,
+          [id],
+        );
+        for (const item of itemsViejos) {
+          await restaurarStockItem(client, {
+            productoId: item.productoId,
+            resId: item.resId,
+            cantidad: Number(item.cantidad),
+          });
+        }
       }
 
       await client.query("delete from pedido_items where pedido_id = $1", [id]);
@@ -220,6 +258,16 @@ pedidosRouter.patch(
         );
       }
 
+      if (estadoActual !== "pendiente") {
+        for (const item of items) {
+          await descontarStockItem(client, {
+            productoId: item.productoId,
+            resId: item.resId ?? null,
+            cantidad: item.cantidad,
+          });
+        }
+      }
+
       await client.query("COMMIT");
       res.json({ ok: true });
     } catch (err) {
@@ -233,11 +281,12 @@ pedidosRouter.patch(
   },
 );
 
-// DELETE /pedidos/:id — elimina un pedido aún no armado (ej. se canceló, se cargó mal)
+// DELETE /pedidos/:id — elimina un pedido en cualquier estado (ej. se canceló, se cargó mal,
+// se entregó por error). Si ya había descontado stock, se lo devuelve antes de borrar.
 pedidosRouter.delete(
   "/pedidos/:id",
   requireAuth,
-  requireRol("operador", "admin"),
+  requireRol("operador", "admin", "repartidor"),
   async (req, res) => {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) {
@@ -258,13 +307,20 @@ pedidosRouter.delete(
         res.status(404).json({ error: "Pedido no encontrado." });
         return;
       }
+
       if (rows[0].estado !== "pendiente") {
-        await client.query("ROLLBACK");
-        res.status(409).json({
-          error:
-            'Solo se puede eliminar un pedido en estado "pendiente" (aún no armado).',
-        });
-        return;
+        const { rows: itemsViejos } = await client.query(
+          `select producto_id as "productoId", res_id as "resId", cantidad
+           from pedido_items where pedido_id = $1`,
+          [id],
+        );
+        for (const item of itemsViejos) {
+          await restaurarStockItem(client, {
+            productoId: item.productoId,
+            resId: item.resId,
+            cantidad: Number(item.cantidad),
+          });
+        }
       }
 
       await client.query("delete from pedido_items where pedido_id = $1", [id]);
@@ -366,6 +422,41 @@ async function descontarStockItem(
     );
     restante -= aDescontar;
   }
+}
+
+// Reverso de descontarStockItem: repone el stock que un ítem ya había descontado
+// (se usa al editar o eliminar un pedido que no está más en estado "pendiente").
+async function restaurarStockItem(
+  client: PoolClient,
+  item: { productoId: number; resId: number | null; cantidad: number },
+): Promise<void> {
+  if (item.resId) {
+    await client.query(
+      `update reses
+       set kilos_disponibles = kilos_disponibles + $1,
+           estado = case when kilos_disponibles + $1 > 0 then 'en_stock' else estado end
+       where id = $2`,
+      [item.cantidad, item.resId],
+    );
+    return;
+  }
+
+  const { rows: productoRows } = await client.query(
+    'select tiene_codigo_barra as "tieneCodigoBarra" from productos where id = $1',
+    [item.productoId],
+  );
+  if (productoRows.length === 0 || productoRows[0].tieneCodigoBarra) {
+    // Carne sin vincular a una res concreta: no había nada descontado.
+    return;
+  }
+
+  // No se puede reconstruir el lote exacto de origen: se repone como un ingreso de
+  // stock nuevo, trazable como devolución del pedido editado/eliminado.
+  await client.query(
+    `insert into items_stock (producto_id, cantidad, cantidad_disponible, registrado_por)
+     values ($1, $2, $2, 'Sistema (pedido editado/eliminado)')`,
+    [item.productoId, item.cantidad],
+  );
 }
 
 async function cambiarEstadoPedido(
@@ -564,7 +655,10 @@ pedidosRouter.patch(
   },
 );
 
-const repesajeSchema = z.object({ cantidad: z.number().positive() });
+const repesajeSchema = z.object({
+  cantidad: z.number().positive(),
+  precio: z.number().nonnegative().optional(),
+});
 
 // PATCH /pedidos/:id/items/:itemId/repesar — corrige el peso real de una línea.
 // Se usa tanto antes de armar (ajuste normal) como después (ej. pesó menos al llegar
@@ -583,7 +677,7 @@ pedidosRouter.patch(
       res.status(400).json({ error: "Cantidad inválida." });
       return;
     }
-    const { cantidad } = parsed.data;
+    const { cantidad, precio } = parsed.data;
 
     const client = await pool.connect();
     try {
@@ -605,8 +699,8 @@ pedidosRouter.patch(
       const { cantidadVieja, resId, estado } = rows[0];
 
       await client.query(
-        "update pedido_items set cantidad = $1 where id = $2",
-        [cantidad, itemId],
+        "update pedido_items set cantidad = $1, precio = coalesce($3, precio) where id = $2",
+        [cantidad, itemId, precio ?? null],
       );
 
       if (estado !== "pendiente" && resId) {

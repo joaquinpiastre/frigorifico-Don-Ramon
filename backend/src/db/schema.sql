@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS clientes (
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS razon_social TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cuit TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS condicion_iva TEXT;
+-- Deuda que el cliente ya traía antes de usar la app, cargada a mano por el admin.
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS saldo_inicial NUMERIC NOT NULL DEFAULT 0;
 
 -- Cabecera de una tropa/romaneo (Nro. Tropa, DTe, fecha de faena, etc.).
 CREATE TABLE IF NOT EXISTS lotes_ingreso (
@@ -254,6 +256,10 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos (estado);
 CREATE INDEX IF NOT EXISTS idx_pedidos_repartidor ON pedidos (repartidor);
 CREATE INDEX IF NOT EXISTS idx_pedidos_cliente ON pedidos (cliente_id);
+
+-- Vincula el pago a un pedido puntual cuando se cobra al momento de la entrega.
+ALTER TABLE pagos ADD COLUMN IF NOT EXISTS pedido_id BIGINT REFERENCES pedidos(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_pagos_pedido ON pagos (pedido_id);
 
 -- Líneas del pedido: producto + cantidad + precio + trazabilidad (garrón/tropa).
 -- res_id opcional: si se vincula a una res física concreta, se completa; si no, null.

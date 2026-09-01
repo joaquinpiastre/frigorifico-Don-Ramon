@@ -34,10 +34,11 @@ export async function listarPedidosApi(filtros?: {
 
 export async function obtenerPedidoApi(id: number): Promise<PedidoDetalle> {
   const data = await apiRequest<{
-    pedido: Omit<PedidoDetalle, "items">;
+    pedido: Omit<PedidoDetalle, "items" | "pagos">;
     items: PedidoDetalle["items"];
+    pagos: PedidoDetalle["pagos"];
   }>(`/pedidos/${id}`);
-  return { ...data.pedido, items: data.items };
+  return { ...data.pedido, items: data.items, pagos: data.pagos };
 }
 
 export async function armarPedidoApi(id: number): Promise<void> {
@@ -55,11 +56,11 @@ export async function entregarPedidoApi(id: number): Promise<void> {
 export async function repesarItemApi(
   pedidoId: number,
   itemId: number,
-  cantidad: number,
+  valores: { cantidad: number; precio?: number },
 ): Promise<void> {
   await apiRequest(`/pedidos/${pedidoId}/items/${itemId}/repesar`, {
     method: "PATCH",
-    body: JSON.stringify({ cantidad }),
+    body: JSON.stringify(valores),
   });
 }
 

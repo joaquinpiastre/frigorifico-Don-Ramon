@@ -20,6 +20,7 @@ const clienteSchema = z.object({
   condicionIva: z.enum(CONDICIONES_IVA).optional(),
   telefono: z.string().optional(),
   direccion: z.string().optional(),
+  saldoInicial: z.number().optional(),
 });
 
 // GET /admin/clientes — listado con saldo calculado (mercadería entregada - pagos)
@@ -30,7 +31,8 @@ clientesRouter.get("/admin/clientes", requireAuth, async (_req, res) => {
   const { rows } = await pool.query(
     `select c.id, c.numero_cliente as "numeroCliente", c.nombre, c.razon_social as "razonSocial",
             c.cuit, c.condicion_iva as "condicionIva", c.telefono, c.direccion, c.activo,
-            coalesce(v.total, 0) + coalesce(pe.total, 0) - coalesce(p.total, 0) as saldo
+            c.saldo_inicial as "saldoInicial",
+            coalesce(c.saldo_inicial, 0) + coalesce(v.total, 0) + coalesce(pe.total, 0) - coalesce(p.total, 0) as saldo
      from clientes c
      left join (select cliente_id, sum(total_importe) as total from ventas group by cliente_id) v
        on v.cliente_id = c.id
@@ -65,6 +67,7 @@ clientesRouter.post("/admin/clientes", requireAuth, async (req, res) => {
     condicionIva,
     telefono,
     direccion,
+    saldoInicial,
   } = parsed.data;
 
   const existente = await pool.query(
@@ -77,10 +80,11 @@ clientesRouter.post("/admin/clientes", requireAuth, async (req, res) => {
   }
 
   const { rows } = await pool.query(
-    `insert into clientes (numero_cliente, nombre, razon_social, cuit, condicion_iva, telefono, direccion)
-     values ($1, $2, $3, $4, $5, $6, $7)
+    `insert into clientes (numero_cliente, nombre, razon_social, cuit, condicion_iva, telefono, direccion, saldo_inicial)
+     values ($1, $2, $3, $4, $5, $6, $7, $8)
      returning id, numero_cliente as "numeroCliente", nombre, razon_social as "razonSocial",
-               cuit, condicion_iva as "condicionIva", telefono, direccion, activo`,
+               cuit, condicion_iva as "condicionIva", telefono, direccion, activo,
+               saldo_inicial as "saldoInicial"`,
     [
       numeroCliente,
       nombre,
@@ -89,6 +93,7 @@ clientesRouter.post("/admin/clientes", requireAuth, async (req, res) => {
       condicionIva ?? null,
       telefono ?? null,
       direccion ?? null,
+      saldoInicial ?? 0,
     ],
   );
   res.json({ cliente: rows[0] });
@@ -104,7 +109,8 @@ clientesRouter.get("/admin/clientes/:id", requireAuth, async (req, res) => {
 
   const clienteResult = await pool.query(
     `select id, numero_cliente as "numeroCliente", nombre, razon_social as "razonSocial",
-            cuit, condicion_iva as "condicionIva", telefono, direccion, activo
+            cuit, condicion_iva as "condicionIva", telefono, direccion, activo,
+            saldo_inicial as "saldoInicial"
      from clientes where id = $1`,
     [id],
   );
@@ -158,13 +164,14 @@ clientesRouter.get("/admin/clientes/:id", requireAuth, async (req, res) => {
     0,
   );
   const totalPagos = pagos.rows.reduce((acc, p) => acc + Number(p.monto), 0);
+  const saldoInicial = Number(clienteResult.rows[0].saldoInicial ?? 0);
 
   res.json({
     cliente: clienteResult.rows[0],
     ventas: ventas.rows,
     pagos: pagos.rows,
     productosEntregados: productosEntregados.rows,
-    saldo: totalVentas - totalPagos,
+    saldo: saldoInicial + totalVentas - totalPagos,
   });
 });
 
@@ -210,6 +217,7 @@ const actualizarClienteSchema = z.object({
   telefono: z.string().trim().optional(),
   direccion: z.string().trim().optional(),
   activo: z.boolean().optional(),
+  saldoInicial: z.number().optional(),
 });
 
 // PATCH /admin/clientes/:id — edita datos de contacto del cliente (lo usa también el repartidor)
@@ -222,8 +230,16 @@ clientesRouter.patch("/admin/clientes/:id", requireAuth, async (req, res) => {
       .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
     return;
   }
-  const { nombre, razonSocial, cuit, condicionIva, telefono, direccion, activo } =
-    parsed.data;
+  const {
+    nombre,
+    razonSocial,
+    cuit,
+    condicionIva,
+    telefono,
+    direccion,
+    activo,
+    saldoInicial,
+  } = parsed.data;
   const usuario = (req as { user?: AuthClaims }).user;
   if (activo !== undefined && usuario?.rol !== "admin") {
     res.status(403).json({ error: "Solo un admin puede activar/desactivar clientes." });
@@ -239,10 +255,12 @@ clientesRouter.patch("/admin/clientes/:id", requireAuth, async (req, res) => {
        condicion_iva = coalesce($5, condicion_iva),
        telefono = coalesce($6, telefono),
        direccion = coalesce($7, direccion),
-       activo = coalesce($8, activo)
+       activo = coalesce($8, activo),
+       saldo_inicial = coalesce($9, saldo_inicial)
      where id = $1
      returning id, numero_cliente as "numeroCliente", nombre, razon_social as "razonSocial",
-               cuit, condicion_iva as "condicionIva", telefono, direccion, activo`,
+               cuit, condicion_iva as "condicionIva", telefono, direccion, activo,
+               saldo_inicial as "saldoInicial"`,
     [
       id,
       nombre ?? null,
@@ -252,6 +270,7 @@ clientesRouter.patch("/admin/clientes/:id", requireAuth, async (req, res) => {
       telefono ?? null,
       direccion ?? null,
       activo ?? null,
+      saldoInicial ?? null,
     ],
   );
   if (rows.length === 0) {
@@ -266,6 +285,7 @@ const METODOS_PAGO = ["efectivo", "transferencia", "cheque"] as const;
 const pagoSchema = z.object({
   clienteId: z.number().int(),
   ventaId: z.number().int().optional(),
+  pedidoId: z.number().int().optional(),
   monto: z.number().positive(),
   metodo: z.enum(METODOS_PAGO).optional(),
   diasCheque: z.number().int().positive().optional(),
@@ -282,8 +302,16 @@ clientesRouter.post("/admin/pagos", requireAuth, async (req, res) => {
       .json({ error: "Datos inválidos.", detalle: parsed.error.flatten() });
     return;
   }
-  const { clienteId, ventaId, monto, metodo, diasCheque, numeroCheque, banco } =
-    parsed.data;
+  const {
+    clienteId,
+    ventaId,
+    pedidoId,
+    monto,
+    metodo,
+    diasCheque,
+    numeroCheque,
+    banco,
+  } = parsed.data;
   if (metodo !== "cheque" && (diasCheque || numeroCheque || banco)) {
     res
       .status(400)
@@ -292,14 +320,15 @@ clientesRouter.post("/admin/pagos", requireAuth, async (req, res) => {
   }
   const usuario = (req as { user?: AuthClaims }).user;
   const { rows } = await pool.query(
-    `insert into pagos (cliente_id, venta_id, monto, metodo, dias_cheque, numero_cheque, banco, registrado_por)
-     values ($1, $2, $3, $4, $5, $6, $7, $8)
-     returning id, cliente_id as "clienteId", venta_id as "ventaId", monto, metodo,
+    `insert into pagos (cliente_id, venta_id, pedido_id, monto, metodo, dias_cheque, numero_cheque, banco, registrado_por)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     returning id, cliente_id as "clienteId", venta_id as "ventaId", pedido_id as "pedidoId", monto, metodo,
                dias_cheque as "diasCheque", numero_cheque as "numeroCheque", banco, fecha,
                registrado_por as "registradoPor"`,
     [
       clienteId,
       ventaId ?? null,
+      pedidoId ?? null,
       monto,
       metodo ?? null,
       diasCheque ?? null,

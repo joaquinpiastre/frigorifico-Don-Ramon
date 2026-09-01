@@ -1,12 +1,14 @@
+import { router } from "expo-router";
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import { StyleSheet, Text, View } from "react-native";
-import { showAlert } from "@/utils/alert";
+import { showAlert, showConfirm } from "@/utils/alert";
 import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
 import {
   cargarPedidoApi,
+  eliminarPedidoApi,
   listarPedidosApi,
   obtenerPedidoApi,
 } from "@/services/pedidosApi";
@@ -16,6 +18,7 @@ export default function PedidosParaCargar() {
   const [pedidos, setPedidos] = useState<PedidoDetalle[]>([]);
   const [cargando, setCargando] = useState(true);
   const [subiendoId, setSubiendoId] = useState<number | null>(null);
+  const [eliminandoId, setEliminandoId] = useState<number | null>(null);
 
   const cargar = useCallback(() => {
     setCargando(true);
@@ -40,6 +43,26 @@ export default function PedidosParaCargar() {
       );
     } finally {
       setSubiendoId(null);
+    }
+  };
+
+  const eliminarPedido = async (pedido: PedidoDetalle) => {
+    const confirmado = await showConfirm(
+      "Eliminar pedido",
+      `¿Eliminar el pedido de ${pedido.clienteNombre}? Ya está armado: el stock que descontó se va a devolver. Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    setEliminandoId(pedido.id);
+    try {
+      await eliminarPedidoApi(pedido.id);
+      cargar();
+    } catch (e) {
+      showAlert(
+        "Pedido",
+        e instanceof Error ? e.message : "No se pudo eliminar el pedido.",
+      );
+    } finally {
+      setEliminandoId(null);
     }
   };
 
@@ -89,6 +112,19 @@ export default function PedidosParaCargar() {
               loading={subiendoId === p.id}
               onPress={() => void marcarCargado(p)}
             />
+            <View style={styles.filaAcciones}>
+              <Button
+                label="EDITAR"
+                variant="secondary"
+                onPress={() => router.push(`/(operador)/pedidos/${p.id}/editar`)}
+              />
+              <Button
+                label="ELIMINAR"
+                variant="danger"
+                loading={eliminandoId === p.id}
+                onPress={() => void eliminarPedido(p)}
+              />
+            </View>
           </View>
         );
       })}
@@ -114,6 +150,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.grisSecundario,
   },
+  filaAcciones: { flexDirection: "row", gap: 8 },
   items: { gap: 4, marginTop: 4 },
   itemFila: {
     paddingVertical: 4,

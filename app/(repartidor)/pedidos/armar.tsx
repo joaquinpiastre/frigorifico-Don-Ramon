@@ -52,7 +52,7 @@ export default function PedidosParaArmar() {
           (repesajes[item.id] ?? "").replace(",", "."),
         );
         if (pesoReal > 0 && pesoReal !== item.cantidad) {
-          await repesarItemApi(pedido.id, item.id, pesoReal);
+          await repesarItemApi(pedido.id, item.id, { cantidad: pesoReal });
         }
       }
       await armarPedidoApi(pedido.id);

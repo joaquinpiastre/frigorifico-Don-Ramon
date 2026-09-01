@@ -61,6 +61,7 @@ export interface Cliente {
   telefono: string | null;
   direccion: string | null;
   activo: boolean;
+  saldoInicial: number;
   saldo?: number;
 }
 
@@ -363,10 +364,23 @@ export interface Pedido {
   repartidorNombre: string | null;
   estado: EstadoPedido;
   fecha: string;
+  entregadoEn?: string | null;
+  total?: number;
+  montoPagado?: number;
+}
+
+export interface PagoPedido {
+  monto: number;
+  metodo: MetodoPago | null;
+  diasCheque: number | null;
+  numeroCheque: string | null;
+  banco: string | null;
+  fecha: string;
 }
 
 export interface PedidoDetalle extends Pedido {
   items: PedidoItem[];
+  pagos: PagoPedido[];
   numeroRemito: number;
   clienteNumero: string;
   clienteTelefono: string | null;

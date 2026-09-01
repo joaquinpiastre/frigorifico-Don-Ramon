@@ -23,6 +23,7 @@ export default function ClientesIndex() {
   const [condicionIva, setCondicionIva] = useState<CondicionIva | null>(null);
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
+  const [saldoInicial, setSaldoInicial] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [busqueda, setBusqueda] = useState('');
 
@@ -47,6 +48,9 @@ export default function ClientesIndex() {
         condicionIva: condicionIva ?? undefined,
         telefono: telefono.trim() || undefined,
         direccion: direccion.trim() || undefined,
+        saldoInicial: saldoInicial.trim()
+          ? Number(saldoInicial.replace(',', '.'))
+          : undefined,
       });
       setNumeroCliente('');
       setNombre('');
@@ -55,6 +59,7 @@ export default function ClientesIndex() {
       setCondicionIva(null);
       setTelefono('');
       setDireccion('');
+      setSaldoInicial('');
       setCreando(false);
       listarClientesApi().then(setClientes).catch(() => undefined);
     } catch (e) {
@@ -94,6 +99,13 @@ export default function ClientesIndex() {
           </View>
           <Input label="Teléfono" value={telefono} onChangeText={setTelefono} />
           <Input label="Dirección" value={direccion} onChangeText={setDireccion} />
+          <Input
+            label="Saldo anterior (deuda previa a la app)"
+            value={saldoInicial}
+            onChangeText={setSaldoInicial}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
           <Button label="GUARDAR CLIENTE" loading={guardando} onPress={() => void guardarCliente()} />
         </View>
       )}

@@ -1,15 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { StyleSheet, Text, View } from 'react-native';
-import { showAlert } from '@/utils/alert';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { showAlert, showConfirm } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { MetodoPagoSelector } from '@/components/ui/MetodoPagoSelector';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { registrarPagoApi } from '@/services/clientesApi';
-import { entregarPedidoApi, obtenerPedidoApi } from '@/services/pedidosApi';
+import {
+  eliminarPedidoApi,
+  entregarPedidoApi,
+  obtenerPedidoApi,
+  repesarItemApi,
+} from '@/services/pedidosApi';
 import { ESTADO_PEDIDO_LABEL, type MetodoPago, type PedidoDetalle } from '@/types';
 
 export default function PedidoDetalleRepartidor() {
@@ -18,15 +23,37 @@ export default function PedidoDetalleRepartidor() {
 
   const [pedido, setPedido] = useState<PedidoDetalle | null>(null);
   const [entregando, setEntregando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [monto, setMonto] = useState('');
   const [metodoPago, setMetodoPago] = useState<MetodoPago | null>(null);
   const [diasCheque, setDiasCheque] = useState('');
   const [numeroCheque, setNumeroCheque] = useState('');
   const [banco, setBanco] = useState('');
   const [registrandoPago, setRegistrandoPago] = useState(false);
+  const [repesajes, setRepesajes] = useState<Record<number, string>>({});
+  const [precios, setPrecios] = useState<Record<number, string>>({});
+  const [guardandoRepesajeId, setGuardandoRepesajeId] = useState<number | null>(null);
 
   const cargar = useCallback(() => {
-    obtenerPedidoApi(pedidoId).then(setPedido).catch(() => setPedido(null));
+    obtenerPedidoApi(pedidoId)
+      .then((p) => {
+        setPedido(p);
+        setRepesajes((prev) => {
+          const next = { ...prev };
+          for (const item of p.items) {
+            if (item.resId && next[item.id] === undefined) next[item.id] = String(item.cantidad);
+          }
+          return next;
+        });
+        setPrecios((prev) => {
+          const next = { ...prev };
+          for (const item of p.items) {
+            if (item.resId && next[item.id] === undefined) next[item.id] = String(item.precio);
+          }
+          return next;
+        });
+      })
+      .catch(() => setPedido(null));
   }, [pedidoId]);
 
   useFocusEffect(cargar);
@@ -80,6 +107,7 @@ export default function PedidoDetalleRepartidor() {
     try {
       await registrarPagoApi({
         clienteId: pedido.clienteId,
+        pedidoId: pedido.id,
         monto: montoNum,
         metodo: metodoPago,
         diasCheque: metodoPago === 'cheque' ? diasChequeNum : undefined,
@@ -92,10 +120,50 @@ export default function PedidoDetalleRepartidor() {
       setNumeroCheque('');
       setBanco('');
       showAlert('Pago', 'Pago registrado.');
+      cargar();
     } catch (e) {
       showAlert('Pago', e instanceof Error ? e.message : 'No se pudo registrar el pago.');
     } finally {
       setRegistrandoPago(false);
+    }
+  };
+
+  const guardarRepesaje = async (itemId: number) => {
+    const pesoReal = Number((repesajes[itemId] ?? '').replace(',', '.'));
+    const precioReal = Number((precios[itemId] ?? '').replace(',', '.'));
+    if (!pesoReal || pesoReal <= 0) {
+      showAlert('Repesaje', 'Ingresá un peso válido.');
+      return;
+    }
+    if (!precioReal || precioReal < 0) {
+      showAlert('Repesaje', 'Ingresá un precio válido.');
+      return;
+    }
+    setGuardandoRepesajeId(itemId);
+    try {
+      await repesarItemApi(pedido.id, itemId, { cantidad: pesoReal, precio: precioReal });
+      cargar();
+    } catch (e) {
+      showAlert('Repesaje', e instanceof Error ? e.message : 'No se pudo guardar el repesaje.');
+    } finally {
+      setGuardandoRepesajeId(null);
+    }
+  };
+
+  const eliminarPedido = async () => {
+    const confirmado = await showConfirm(
+      'Eliminar pedido',
+      `¿Eliminar el pedido de ${pedido.clienteNombre}? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    setEliminando(true);
+    try {
+      await eliminarPedidoApi(pedido.id);
+      router.replace('/(repartidor)/pedidos');
+    } catch (e) {
+      showAlert('Pedido', e instanceof Error ? e.message : 'No se pudo eliminar el pedido.');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -108,6 +176,32 @@ export default function PedidoDetalleRepartidor() {
               {item.productoNombre} · {item.cantidad} × ${item.precio} = ${(item.cantidad * item.precio).toFixed(2)}
             </Text>
             {item.garron ? <Text style={styles.sub}>Garrón {item.garron}</Text> : null}
+            {item.resId ? (
+              <View style={styles.repesajeRow}>
+                <Text style={styles.repesajeLabel}>Peso (kg):</Text>
+                <TextInput
+                  style={styles.repesajeInput}
+                  value={repesajes[item.id] ?? String(item.cantidad)}
+                  onChangeText={(v) => setRepesajes((prev) => ({ ...prev, [item.id]: v }))}
+                  keyboardType="decimal-pad"
+                  selectTextOnFocus
+                />
+                <Text style={styles.repesajeLabel}>Precio:</Text>
+                <TextInput
+                  style={styles.repesajeInput}
+                  value={precios[item.id] ?? String(item.precio)}
+                  onChangeText={(v) => setPrecios((prev) => ({ ...prev, [item.id]: v }))}
+                  keyboardType="decimal-pad"
+                  selectTextOnFocus
+                />
+                <Button
+                  label="GUARDAR"
+                  variant="secondary"
+                  loading={guardandoRepesajeId === item.id}
+                  onPress={() => void guardarRepesaje(item.id)}
+                />
+              </View>
+            ) : null}
           </View>
         ))}
         <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
@@ -122,6 +216,15 @@ export default function PedidoDetalleRepartidor() {
       {pedido.estado === 'cargado' ? (
         <Button label="MARCAR ENTREGADO" loading={entregando} onPress={() => void marcarEntregado()} />
       ) : null}
+
+      <View style={styles.filaAcciones}>
+        <Button
+          label="EDITAR"
+          variant="secondary"
+          onPress={() => router.push(`/(repartidor)/pedidos/${pedido.id}/editar`)}
+        />
+        <Button label="ELIMINAR" variant="danger" loading={eliminando} onPress={() => void eliminarPedido()} />
+      </View>
 
       <View style={styles.card}>
         <Text style={styles.seccion}>Registrar pago</Text>
@@ -149,4 +252,19 @@ const styles = StyleSheet.create({
   linea: { fontFamily: 'Poppins_600SemiBold', fontSize: 13, color: COLORS.grisTexto },
   sub: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },
   total: { fontFamily: 'Poppins_700Bold', fontSize: 16, color: COLORS.doradoOscuro, textAlign: 'right', marginTop: 6 },
+  filaAcciones: { flexDirection: 'row', gap: 8 },
+  repesajeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' },
+  repesajeLabel: { fontFamily: 'Poppins_600SemiBold', fontSize: 12, color: COLORS.grisTexto },
+  repesajeInput: {
+    borderWidth: 1,
+    borderColor: COLORS.doradoOscuro,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontFamily: 'Poppins_600SemiBold',
+    fontSize: 13,
+    color: COLORS.grisTexto,
+    minWidth: 72,
+    textAlign: 'center',
+  },
 });

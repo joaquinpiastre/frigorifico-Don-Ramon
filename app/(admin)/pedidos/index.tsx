@@ -41,14 +41,36 @@ export default function PedidosIndex() {
       </View>
 
       {pedidos.length === 0 ? <Text style={styles.vacio}>No hay pedidos para este filtro.</Text> : null}
-      {pedidos.map((p) => (
-        <Pressable key={p.id} style={styles.card} onPress={() => router.push(`/(admin)/pedidos/${p.id}`)}>
-          <Text style={styles.cliente}>{p.clienteNombre}</Text>
-          <Text style={styles.sub}>
-            {ESTADO_PEDIDO_LABEL[p.estado]} · Repartidor: {p.repartidorNombre ?? p.repartidor}
-          </Text>
-        </Pressable>
-      ))}
+      {pedidos.map((p) => {
+        const total = p.total ?? 0;
+        const montoPagado = p.montoPagado ?? 0;
+        return (
+          <Pressable key={p.id} style={styles.card} onPress={() => router.push(`/(admin)/pedidos/${p.id}`)}>
+            <Text style={styles.cliente}>{p.clienteNombre}</Text>
+            <Text style={styles.sub}>
+              {ESTADO_PEDIDO_LABEL[p.estado]} · Repartidor: {p.repartidorNombre ?? p.repartidor}
+            </Text>
+            {p.estado === "entregado" ? (
+              <Text
+                style={[
+                  styles.estadoPago,
+                  montoPagado >= total
+                    ? styles.estadoPagoOk
+                    : montoPagado > 0
+                      ? styles.estadoPagoParcial
+                      : styles.estadoPagoDeuda,
+                ]}
+              >
+                {montoPagado >= total
+                  ? "PAGADO"
+                  : montoPagado > 0
+                    ? `PARCIAL: $${montoPagado.toFixed(0)} de $${total.toFixed(0)}`
+                    : "SIN PAGAR"}
+              </Text>
+            ) : null}
+          </Pressable>
+        );
+      })}
     </Screen>
   );
 }
@@ -69,5 +91,18 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 4, marginBottom: 8 },
   cliente: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: COLORS.grisTexto },
   sub: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },
+  estadoPago: {
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 11,
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  estadoPagoOk: { backgroundColor: '#dff5e1', color: '#1f7a3d' },
+  estadoPagoParcial: { backgroundColor: '#fff2d6', color: '#9a6a00' },
+  estadoPagoDeuda: { backgroundColor: '#fde1e1', color: '#a3231f' },
   vacio: { fontFamily: 'Poppins_400Regular', fontSize: 13, color: COLORS.grisSecundario, textAlign: 'center', marginTop: 20 },
 });

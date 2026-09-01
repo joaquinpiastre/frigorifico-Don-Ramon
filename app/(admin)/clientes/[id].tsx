@@ -54,6 +54,9 @@ export default function ClienteDetalle() {
   const [eliminando, setEliminando] = useState(false);
   const [cambiandoActivo, setCambiandoActivo] = useState(false);
 
+  const [saldoInicialInput, setSaldoInicialInput] = useState("");
+  const [guardandoSaldoInicial, setGuardandoSaldoInicial] = useState(false);
+
   const [editandoPagoId, setEditandoPagoId] = useState<number | null>(null);
   const [editMonto, setEditMonto] = useState("");
   const [editMetodo, setEditMetodo] = useState<MetodoPago | null>(null);
@@ -71,6 +74,7 @@ export default function ClienteDetalle() {
         setPagos(data.pagos);
         setProductosEntregados(data.productosEntregados);
         setSaldo(data.saldo);
+        setSaldoInicialInput(String(data.cliente.saldoInicial ?? 0));
       })
       .catch(() => setCliente(null))
       .finally(() => setCargando(false));
@@ -128,6 +132,26 @@ export default function ClienteDetalle() {
       );
     } finally {
       setRegistrandoPago(false);
+    }
+  };
+
+  const guardarSaldoInicial = async () => {
+    const valor = Number(saldoInicialInput.replace(",", "."));
+    if (Number.isNaN(valor)) {
+      showAlert("Saldo anterior", "Ingresá un número válido.");
+      return;
+    }
+    setGuardandoSaldoInicial(true);
+    try {
+      await actualizarClienteApi(clienteId, { saldoInicial: valor });
+      cargar();
+    } catch (e) {
+      showAlert(
+        "Saldo anterior",
+        e instanceof Error ? e.message : "No se pudo guardar el saldo anterior.",
+      );
+    } finally {
+      setGuardandoSaldoInicial(false);
     }
   };
 
@@ -303,6 +327,23 @@ export default function ClienteDetalle() {
       ) : null}
 
       <View style={styles.card}>
+        <Text style={styles.label}>Saldo anterior (deuda previa a la app)</Text>
+        <View style={styles.filaSaldoInicial}>
+          <View style={{ flex: 1 }}>
+            <Input
+              value={saldoInicialInput}
+              onChangeText={setSaldoInicialInput}
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <Button
+            label="GUARDAR"
+            variant="secondary"
+            loading={guardandoSaldoInicial}
+            onPress={() => void guardarSaldoInicial()}
+          />
+        </View>
+
         <Text style={styles.label}>Saldo actual</Text>
         <Text style={[styles.saldo, saldo > 0 && styles.saldoDeudor]}>
           ${saldo.toFixed(2)}
@@ -490,6 +531,11 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     fontSize: 12,
     color: COLORS.grisSecundario,
+  },
+  filaSaldoInicial: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
   },
   datoLabel: {
     fontFamily: "Poppins_600SemiBold",

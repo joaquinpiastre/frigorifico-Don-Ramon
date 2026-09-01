@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRef, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { showAlert } from "@/utils/alert";
 import { BarcodeScannerModal } from "@/components/scanner/BarcodeScannerModal";
 import { Button } from "@/components/ui/Button";
@@ -154,33 +154,29 @@ export function SelectorReses({
           ⚠️ No tenés stock de {productoNombre} en este momento.
         </Text>
       ) : (
-        <FlatList
-          data={resesDelTipo}
-          keyExtractor={(r) => String(r.id)}
-          scrollEnabled={false}
-          renderItem={({ item }) => {
-            const marcada = seleccion.has(item.id);
-            return (
-              <Pressable
-                style={[styles.opcionCard, marcada && styles.opcionCardActiva]}
-                onPress={() => toggle(item)}
-              >
-                <Text style={styles.opcionTexto}>
-                  {marcada ? "✓ " : ""}
-                  Cor {item.cor}
-                  {item.garron ? ` · Garrón ${item.garron}` : ""}
-                </Text>
-                <Text style={styles.sub}>
-                  {disponibleReal(item.kilosDisponibles, item.reservado)} kg disponibles
-                  {item.reservado > 0
-                    ? ` (${item.reservado} kg ya reservados en otro pedido)`
-                    : ""}
-                  {item.clasificacion ? ` · ${item.clasificacion}` : ""}
-                </Text>
-              </Pressable>
-            );
-          }}
-        />
+        resesDelTipo.map((item) => {
+          const marcada = seleccion.has(item.id);
+          return (
+            <Pressable
+              key={item.id}
+              style={[styles.opcionCard, marcada && styles.opcionCardActiva]}
+              onPress={() => toggle(item)}
+            >
+              <Text style={styles.opcionTexto}>
+                {marcada ? "✓ " : ""}
+                Cor {item.cor}
+                {item.garron ? ` · Garrón ${item.garron}` : ""}
+              </Text>
+              <Text style={styles.sub}>
+                {disponibleReal(item.kilosDisponibles, item.reservado)} kg disponibles
+                {item.reservado > 0
+                  ? ` (${item.reservado} kg ya reservados en otro pedido)`
+                  : ""}
+                {item.clasificacion ? ` · ${item.clasificacion}` : ""}
+              </Text>
+            </Pressable>
+          );
+        })
       )}
 
       {resesSeleccionadas.length > 0 ? (
