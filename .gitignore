@@ -10,3 +10,6 @@ backend/.env
 
 .vercel
 .env*
+
+# Originales HEIC de fotos (se usan las versiones optimizadas en assets/landing)
+assets/images/*.HEIC
