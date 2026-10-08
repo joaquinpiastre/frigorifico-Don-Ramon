@@ -21,7 +21,10 @@ const app = express();
 
 app.use(
   cors({
-    origin: config.corsOrigin === "*" ? true : config.corsOrigin,
+    origin:
+      config.corsOrigin === "*"
+        ? true
+        : config.corsOrigin.split(",").map((o) => o.trim()),
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

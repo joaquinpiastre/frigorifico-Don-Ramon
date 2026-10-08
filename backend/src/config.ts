@@ -5,5 +5,6 @@ export const config = {
   gt06Port: Number(process.env.GT06_PORT ?? 5024),
   databaseUrl: process.env.DATABASE_URL ?? '',
   jwtSecret: process.env.JWT_SECRET ?? 'dev-secret',
+  // Uno o varios orígenes separados por coma, o "*" para permitir todos.
   corsOrigin: process.env.CORS_ORIGIN ?? '*',
 };
