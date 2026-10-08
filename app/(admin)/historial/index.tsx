@@ -8,8 +8,11 @@ import {
   Text,
   View,
 } from "react-native";
+import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
+import { showAlert, showConfirm } from "@/utils/alert";
+import { eliminarPagoApi } from "@/services/clientesApi";
 import {
   obtenerHistorialDiaApi,
   obtenerHistorialMesApi,
@@ -68,7 +71,7 @@ export default function HistorialIndex() {
       .finally(() => setCargandoMes(false));
   }, [mesVisible]);
 
-  useEffect(() => {
+  const cargarDia = useCallback(() => {
     setCargandoDia(true);
     setError(false);
     obtenerHistorialDiaApi(diaSeleccionado)
@@ -76,6 +79,27 @@ export default function HistorialIndex() {
       .catch(() => setError(true))
       .finally(() => setCargandoDia(false));
   }, [diaSeleccionado]);
+
+  useEffect(() => {
+    cargarDia();
+  }, [cargarDia]);
+
+  const eliminarPago = async (pagoId: number, monto: number, cliente: string) => {
+    const confirmado = await showConfirm(
+      "Eliminar pago",
+      `¿Eliminar el pago de $${monto.toFixed(2)} de ${cliente}? Vuelve a sumarse a lo que debe el cliente. Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    try {
+      await eliminarPagoApi(pagoId);
+      cargarDia();
+    } catch (e) {
+      showAlert(
+        "Pago",
+        e instanceof Error ? e.message : "No se pudo eliminar el pago.",
+      );
+    }
+  };
 
   const actividadPorDia = useMemo(() => {
     const mapa = new Map<string, HistorialDiaResumen>();
@@ -240,7 +264,11 @@ export default function HistorialIndex() {
               </Text>
             ) : (
               detalle.pedidos.map((p) => (
-                <View key={p.id} style={styles.fila}>
+                <Pressable
+                  key={p.id}
+                  style={styles.fila}
+                  onPress={() => router.push(`/(admin)/pedidos/${p.id}`)}
+                >
                   <Text style={styles.filaTexto}>
                     {p.clienteNombre}{" "}
                     <Text style={styles.filaSub}>· {p.repartidorNombre}</Text>
@@ -253,7 +281,7 @@ export default function HistorialIndex() {
                       {ESTADO_PEDIDO_LABEL[p.estado]}
                     </Text>
                   </View>
-                </View>
+                </Pressable>
               ))
             )}
           </View>
@@ -325,6 +353,38 @@ export default function HistorialIndex() {
                     <Text style={styles.filaSub}>({p.cantidad})</Text>
                   </Text>
                   <Text style={styles.filaImporte}>${p.total.toFixed(2)}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.seccion}>Cobros del día</Text>
+            {detalle.pagosDetalle.length === 0 ? (
+              <Text style={styles.statSub}>
+                No se recibieron pagos este día.
+              </Text>
+            ) : (
+              detalle.pagosDetalle.map((p) => (
+                <View key={p.id} style={styles.fila}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.filaTexto}>{p.clienteNombre}</Text>
+                    <Text style={styles.filaSub}>
+                      {p.metodo ?? "Sin método"} ·{" "}
+                      {new Date(p.fecha).toLocaleTimeString("es-AR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Text>
+                  </View>
+                  <Text style={styles.filaImporte}>${p.monto.toFixed(2)}</Text>
+                  <Button
+                    label="ELIMINAR"
+                    variant="danger"
+                    onPress={() =>
+                      void eliminarPago(p.id, p.monto, p.clienteNombre)
+                    }
+                  />
                 </View>
               ))
             )}

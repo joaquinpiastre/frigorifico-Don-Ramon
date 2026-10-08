@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { showAlert, showConfirm } from "@/utils/alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -18,6 +18,7 @@ import type {
   Producto,
   Res,
 } from "@/types";
+import { ListaSimple } from "@/components/ui/ListaSimple";
 
 interface Linea {
   productoId: number;
@@ -304,10 +305,9 @@ export default function NuevoPedidoRepartidor() {
               value={busquedaCliente}
               onChangeText={setBusquedaCliente}
             />
-            <FlatList
+            <ListaSimple
               data={clientesFiltrados}
               keyExtractor={(c) => String(c.id)}
-              scrollEnabled={false}
               renderItem={({ item }) => (
                 <Pressable
                   style={styles.opcionCard}
@@ -449,10 +449,9 @@ export default function NuevoPedidoRepartidor() {
               onChangeText={setBusquedaProducto}
               placeholder="Ej: carne de res, cerdo, chorizo…"
             />
-            <FlatList
+            <ListaSimple
               data={productosFiltrados}
               keyExtractor={(p) => String(p.id)}
-              scrollEnabled={false}
               renderItem={({ item }) => (
                 <Pressable
                   style={styles.opcionCard}

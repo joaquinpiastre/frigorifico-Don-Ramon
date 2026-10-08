@@ -109,7 +109,7 @@ historialRouter.get(
     }
     const { fecha } = parsed.data;
 
-    const [ventas, pedidos, pagos, productosVendidos, kilos] =
+    const [ventas, pedidos, pagos, productosVendidos, kilos, pagosDetalle] =
       await Promise.all([
         pool.query<{
           id: number;
@@ -190,6 +190,21 @@ historialRouter.get(
        where p.estado = 'entregado' and p.entregado_en::date = $1::date`,
           [fecha],
         ),
+        pool.query<{
+          id: number;
+          clienteNombre: string;
+          monto: string;
+          metodo: string | null;
+          fecha: string;
+          pedidoId: number | null;
+        }>(
+          `select pg.id, c.nombre as "clienteNombre", pg.monto, pg.metodo, pg.fecha, pg.pedido_id as "pedidoId"
+       from pagos pg
+       join clientes c on c.id = pg.cliente_id
+       where pg.fecha::date = $1::date
+       order by pg.fecha desc`,
+          [fecha],
+        ),
       ]);
 
     const totalVentas = ventas.rows.reduce(
@@ -231,6 +246,14 @@ historialRouter.get(
         metodo: p.metodo,
         cantidad: Number(p.cantidad),
         total: Number(p.total),
+      })),
+      pagosDetalle: pagosDetalle.rows.map((p) => ({
+        id: p.id,
+        clienteNombre: p.clienteNombre,
+        monto: Number(p.monto),
+        metodo: p.metodo,
+        fecha: p.fecha,
+        pedidoId: p.pedidoId,
       })),
       productosVendidos: productosVendidos.rows.map((p) => ({
         descripcion: p.descripcion,

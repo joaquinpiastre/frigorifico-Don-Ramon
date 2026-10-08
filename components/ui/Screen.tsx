@@ -17,7 +17,11 @@ export function Screen({ title, subtitle, scrollable, children }: Props) {
   const puedeVolver = router.canGoBack();
   const Container = scrollable ? ScrollView : View;
   const containerProps = scrollable
-    ? { contentContainerStyle: [styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 24 }] }
+    ? {
+        contentContainerStyle: [styles.content, { paddingBottom: Math.max(insets.bottom, 24) + 24 }],
+        keyboardShouldPersistTaps: 'handled',
+        showsVerticalScrollIndicator: false,
+      }
     : { style: [styles.content, { flex: 1, paddingBottom: Math.max(insets.bottom, 24) }] };
 
   return (

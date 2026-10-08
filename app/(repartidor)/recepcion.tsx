@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  FlatList,
   Platform,
   Pressable,
   StyleSheet,
@@ -26,6 +25,8 @@ import {
   type Producto,
   type TipoRes,
 } from "@/types";
+import { AUTO_FOCUS_ESCRITORIO } from "@/utils/autoFocus";
+import { ListaSimple } from "@/components/ui/ListaSimple";
 
 const TIPOS: TipoRes[] = ["vacuno", "toro", "cerdo", "otro"];
 
@@ -306,7 +307,7 @@ export default function RecepcionRapida() {
             onChangeText={setCodigo}
             onSubmitEditing={() => void procesarCodigo()}
             editable={!altaPendiente}
-            autoFocus
+            autoFocus={AUTO_FOCUS_ESCRITORIO}
             blurOnSubmit={false}
             returnKeyType="done"
             placeholder="Esperando lectura…"
@@ -348,7 +349,7 @@ export default function RecepcionRapida() {
                 keyboardType="decimal-pad"
                 onSubmitEditing={() => void guardarRes()}
                 returnKeyType="done"
-                autoFocus
+                autoFocus={AUTO_FOCUS_ESCRITORIO}
               />
               <Input
                 label="Garrón (opcional)"
@@ -410,10 +411,9 @@ export default function RecepcionRapida() {
               placeholder="Ej: chorizo, morcilla…"
             />
             {productosFiltrados.length > 0 ? (
-              <FlatList
+              <ListaSimple
                 data={productosFiltrados}
                 keyExtractor={(p) => String(p.id)}
-                scrollEnabled={false}
                 renderItem={({ item }) => (
                   <Pressable
                     style={styles.productoCard}
@@ -444,7 +444,7 @@ export default function RecepcionRapida() {
                   keyboardType="decimal-pad"
                   onSubmitEditing={() => void guardarStock()}
                   returnKeyType="done"
-                  autoFocus
+                  autoFocus={AUTO_FOCUS_ESCRITORIO}
                 />
                 <Button
                   label="GUARDAR"

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { COLORS } from "@/constants/colors";
 import { buscarResPorCodigoApi } from "@/services/stockApi";
 import type { Res, TipoRes } from "@/types";
+import { AUTO_FOCUS_ESCRITORIO } from "@/utils/autoFocus";
 
 // Lo que realmente queda libre: lo que hay en stock menos lo que otros pedidos
 // pendientes (aún sin armar) ya tienen anotado sobre esa misma res.
@@ -91,7 +92,7 @@ export function SelectorReses({
     } finally {
       setCodigo("");
       setBuscando(false);
-      inputRef.current?.focus();
+      if (AUTO_FOCUS_ESCRITORIO) inputRef.current?.focus();
     }
   };
 
@@ -126,7 +127,7 @@ export function SelectorReses({
             value={codigo}
             onChangeText={setCodigo}
             onSubmitEditing={() => void buscarPorCodigo()}
-            autoFocus
+            autoFocus={AUTO_FOCUS_ESCRITORIO}
             blurOnSubmit={false}
             returnKeyType="done"
             placeholder="Pistola lectora o tocá la cámara…"

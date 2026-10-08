@@ -262,6 +262,15 @@ export interface HistorialPago {
   total: number;
 }
 
+export interface HistorialPagoDetalle {
+  id: number;
+  clienteNombre: string;
+  monto: number;
+  metodo: string | null;
+  fecha: string;
+  pedidoId: number | null;
+}
+
 export interface HistorialProductoVendido {
   descripcion: string;
   kilos: number;
@@ -282,6 +291,7 @@ export interface HistorialDiaDetalle {
   ventas: HistorialVenta[];
   pedidos: HistorialPedido[];
   pagos: HistorialPago[];
+  pagosDetalle: HistorialPagoDetalle[];
   productosVendidos: HistorialProductoVendido[];
 }
 
@@ -370,6 +380,7 @@ export interface Pedido {
 }
 
 export interface PagoPedido {
+  id: number;
   monto: number;
   metodo: MetodoPago | null;
   diasCheque: number | null;

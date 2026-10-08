@@ -28,6 +28,12 @@ export default function RepartidorHome() {
         onPress={() => router.push('/(repartidor)/pedidos/cargar')}
       />
       <Button
+        label="TODOS LOS PEDIDOS (EDITAR / ELIMINAR)"
+        variant="secondary"
+        iconLeft={<Ionicons name="create-outline" size={18} color={COLORS.negro} />}
+        onPress={() => router.push('/(repartidor)/pedidos/todos')}
+      />
+      <Button
         label="RECEPCIÓN RÁPIDA"
         variant="secondary"
         iconLeft={<Ionicons name="barcode-outline" size={18} color={COLORS.negro} />}

@@ -6,6 +6,7 @@ import { showAlert, showConfirm } from "@/utils/alert";
 import { Button } from "@/components/ui/Button";
 import { Screen } from "@/components/ui/Screen";
 import { COLORS } from "@/constants/colors";
+import { eliminarPagoApi } from "@/services/clientesApi";
 import {
   eliminarPedidoApi,
   obtenerPedidoApi,
@@ -132,10 +133,31 @@ export default function PedidoDetalleAdmin() {
     }
   };
 
+  const eliminarPago = async (pagoId: number, monto: number) => {
+    const confirmado = await showConfirm(
+      "Eliminar pago",
+      `¿Eliminar el pago de $${monto.toFixed(2)}? Vuelve a sumarse a lo que debe el cliente. Esta acción no se puede deshacer.`,
+    );
+    if (!confirmado) return;
+    try {
+      await eliminarPagoApi(pagoId);
+      cargar();
+    } catch (e) {
+      showAlert(
+        "Pago",
+        e instanceof Error ? e.message : "No se pudo eliminar el pago.",
+      );
+    }
+  };
+
   const eliminarPedido = async () => {
     const confirmado = await showConfirm(
       "Eliminar pedido",
-      `¿Eliminar el pedido de ${pedido.clienteNombre}? Esta acción no se puede deshacer.`,
+      `¿Eliminar el pedido de ${pedido.clienteNombre}?${
+        pedido.pagos.length > 0
+          ? " Tiene pagos registrados: quedan a favor del cliente (si querés quitarlos, eliminalos antes)."
+          : ""
+      } Esta acción no se puede deshacer.`,
     );
     if (!confirmado) return;
     setEliminando(true);
@@ -212,26 +234,43 @@ export default function PedidoDetalleAdmin() {
         <Text style={styles.total}>Total: ${total.toFixed(2)}</Text>
       </View>
 
-      {pedido.estado === "entregado" ? (
-        <View style={styles.card}>
-          <Text style={styles.seccion}>Entrega</Text>
+      <View style={styles.card}>
+        <Text style={styles.seccion}>Estado y pago</Text>
+        <Text style={styles.sub}>
+          Situación: {ESTADO_PEDIDO_LABEL[pedido.estado]}
+        </Text>
+        <Text style={styles.sub}>
+          Creado el {new Date(pedido.fecha).toLocaleString("es-AR")}
+        </Text>
+        {pedido.estado === "entregado" ? (
           <Text style={styles.sub}>
             Entregado el{" "}
             {pedido.entregadoEn
               ? new Date(pedido.entregadoEn).toLocaleString("es-AR")
               : "—"}
           </Text>
-          {pedido.pagos.length === 0 ? (
-            <Text style={styles.sub}>Sin pagos registrados.</Text>
-          ) : (
-            pedido.pagos.map((pago, i) => (
-              <Text key={i} style={styles.sub}>
+        ) : (
+          <Text style={styles.sub}>Todavía no fue entregado.</Text>
+        )}
+        {pedido.pagos.length === 0 ? (
+          <Text style={styles.sub}>Sin pagos registrados.</Text>
+        ) : (
+          pedido.pagos.map((pago) => (
+            <View key={pago.id} style={styles.pagoFila}>
+              <Text style={[styles.sub, { flex: 1 }]}>
                 ${pago.monto.toFixed(2)} ·{" "}
                 {pago.metodo ? METODO_PAGO_LABEL[pago.metodo] : "Sin método"} ·{" "}
                 {new Date(pago.fecha).toLocaleString("es-AR")}
               </Text>
-            ))
-          )}
+              <Button
+                label="ELIMINAR"
+                variant="danger"
+                onPress={() => void eliminarPago(pago.id, pago.monto)}
+              />
+            </View>
+          ))
+        )}
+        {total > 0 ? (
           <Text
             style={[
               styles.estadoPago,
@@ -248,8 +287,8 @@ export default function PedidoDetalleAdmin() {
                 ? `PAGO PARCIAL: $${montoPagado.toFixed(2)} de $${total.toFixed(2)}`
                 : "SIN PAGAR"}
           </Text>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
 
       {pedido.estado === "armado" ? (
         <View style={styles.card}>
@@ -352,6 +391,7 @@ const styles = StyleSheet.create({
   },
   chipTextoActivo: { color: "#fff" },
   filaAcciones: { flexDirection: "row", gap: 8 },
+  pagoFila: { flexDirection: "row", alignItems: "center", gap: 8 },
   estadoPago: {
     fontFamily: "Poppins_700Bold",
     fontSize: 13,

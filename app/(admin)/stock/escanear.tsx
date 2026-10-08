@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { COLORS } from '@/constants/colors';
 import { buscarResPorCodigoApi } from '@/services/stockApi';
+import { AUTO_FOCUS_ESCRITORIO } from "@/utils/autoFocus";
 
 export default function EscanearEtiqueta() {
   const [codigo, setCodigo] = useState('');
@@ -31,7 +32,7 @@ export default function EscanearEtiqueta() {
     } finally {
       setCodigo('');
       setBuscando(false);
-      inputRef.current?.focus();
+      if (AUTO_FOCUS_ESCRITORIO) inputRef.current?.focus();
     }
   };
 
@@ -50,7 +51,7 @@ export default function EscanearEtiqueta() {
             value={codigo}
             onChangeText={setCodigo}
             onSubmitEditing={() => void procesarCodigo()}
-            autoFocus
+            autoFocus={AUTO_FOCUS_ESCRITORIO}
             blurOnSubmit={false}
             returnKeyType="done"
             placeholder="Esperando lectura…"

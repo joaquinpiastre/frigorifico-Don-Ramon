@@ -170,7 +170,7 @@ pedidosRouter.get("/pedidos/:id", requireAuth, async (req, res) => {
   );
 
   const pagos = await pool.query(
-    `select monto, metodo, dias_cheque as "diasCheque", numero_cheque as "numeroCheque",
+    `select id, monto, metodo, dias_cheque as "diasCheque", numero_cheque as "numeroCheque",
             banco, fecha
      from pagos where pedido_id = $1 order by fecha`,
     [id],

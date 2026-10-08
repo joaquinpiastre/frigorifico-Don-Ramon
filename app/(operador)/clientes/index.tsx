@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -23,6 +23,7 @@ export default function ClientesOperador() {
   const [condicionIva, setCondicionIva] = useState<CondicionIva | null>(null);
   const [telefono, setTelefono] = useState('');
   const [direccion, setDireccion] = useState('');
+  const [saldoInicial, setSaldoInicial] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [busqueda, setBusqueda] = useState('');
 
@@ -37,6 +38,11 @@ export default function ClientesOperador() {
       showAlert('Cliente', 'Ingresá número y nombre del cliente.');
       return;
     }
+    const saldoNum = saldoInicial.trim() ? Number(saldoInicial.replace(',', '.')) : undefined;
+    if (saldoNum !== undefined && Number.isNaN(saldoNum)) {
+      showAlert('Cliente', 'El saldo anterior tiene que ser un número.');
+      return;
+    }
     setGuardando(true);
     try {
       await crearClienteApi({
@@ -47,6 +53,7 @@ export default function ClientesOperador() {
         condicionIva: condicionIva ?? undefined,
         telefono: telefono.trim() || undefined,
         direccion: direccion.trim() || undefined,
+        saldoInicial: saldoNum,
       });
       setNumeroCliente('');
       setNombre('');
@@ -55,6 +62,7 @@ export default function ClientesOperador() {
       setCondicionIva(null);
       setTelefono('');
       setDireccion('');
+      setSaldoInicial('');
       setCreando(false);
       listarClientesApi().then(setClientes).catch(() => undefined);
     } catch (e) {
@@ -94,6 +102,13 @@ export default function ClientesOperador() {
           </View>
           <Input label="Teléfono" value={telefono} onChangeText={setTelefono} />
           <Input label="Dirección" value={direccion} onChangeText={setDireccion} />
+          <Input
+            label="Saldo anterior (deuda previa a la app)"
+            value={saldoInicial}
+            onChangeText={setSaldoInicial}
+            keyboardType="decimal-pad"
+            placeholder="0"
+          />
           <Button label="GUARDAR CLIENTE" loading={guardando} onPress={() => void guardarCliente()} />
           <Button label="CANCELAR" variant="secondary" onPress={() => setCreando(false)} />
         </View>
@@ -109,7 +124,7 @@ export default function ClientesOperador() {
       <Text style={styles.contador}>
         {clientesFiltrados.length} de {clientes.length} clientes
       </Text>
-      <ScrollView style={{ marginTop: 4 }}>
+      <View style={{ marginTop: 4 }}>
         {clientesFiltrados.length === 0 ? (
           <Text style={styles.vacio}>
             {busqueda.trim() ? `Sin resultados para "${busqueda.trim()}".` : 'No hay clientes registrados.'}
@@ -126,7 +141,7 @@ export default function ClientesOperador() {
             </Pressable>
           ))
         )}
-      </ScrollView>
+      </View>
     </Screen>
   );
 }

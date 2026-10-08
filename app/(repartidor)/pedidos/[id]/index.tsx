@@ -15,7 +15,7 @@ import {
   obtenerPedidoApi,
   repesarItemApi,
 } from '@/services/pedidosApi';
-import { ESTADO_PEDIDO_LABEL, type MetodoPago, type PedidoDetalle } from '@/types';
+import { ESTADO_PEDIDO_LABEL, METODO_PAGO_LABEL, type MetodoPago, type PedidoDetalle } from '@/types';
 
 export default function PedidoDetalleRepartidor() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -67,10 +67,27 @@ export default function PedidoDetalleRepartidor() {
   }
 
   const total = pedido.items.reduce((acc, i) => acc + i.cantidad * i.precio, 0);
+  const montoPagado = pedido.pagos.reduce((acc, p) => acc + p.monto, 0);
+  const pendiente = Math.max(0, total - montoPagado);
+
+  // Si quedó un peso/precio escrito sin guardar, se aplica antes de cobrar o entregar.
+  const aplicarRepesajesPendientes = async () => {
+    for (const item of pedido.items) {
+      if (!item.resId) continue;
+      const peso = Number((repesajes[item.id] ?? '').replace(',', '.'));
+      const precio = Number((precios[item.id] ?? '').replace(',', '.'));
+      if (!peso || peso <= 0) throw new Error('Ingresá un peso válido.');
+      if (Number.isNaN(precio) || precio < 0) throw new Error('Ingresá un precio válido.');
+      if (peso !== item.cantidad || precio !== item.precio) {
+        await repesarItemApi(pedido.id, item.id, { cantidad: peso, precio });
+      }
+    }
+  };
 
   const marcarEntregado = async () => {
     setEntregando(true);
     try {
+      await aplicarRepesajesPendientes();
       await entregarPedidoApi(pedidoId);
       router.replace('/(repartidor)/pedidos');
     } catch (e) {
@@ -105,6 +122,7 @@ export default function PedidoDetalleRepartidor() {
     }
     setRegistrandoPago(true);
     try {
+      await aplicarRepesajesPendientes();
       await registrarPagoApi({
         clienteId: pedido.clienteId,
         pedidoId: pedido.id,
@@ -119,6 +137,24 @@ export default function PedidoDetalleRepartidor() {
       setDiasCheque('');
       setNumeroCheque('');
       setBanco('');
+      // Al cobrar un pedido que ya está en la camioneta, se da por entregado y se sale.
+      if (pedido.estado === 'cargado') {
+        try {
+          await entregarPedidoApi(pedido.id);
+        } catch (e) {
+          showAlert(
+            'Pago',
+            `El pago se registró, pero no se pudo marcar como entregado: ${
+              e instanceof Error ? e.message : 'error desconocido'
+            }`,
+          );
+          cargar();
+          return;
+        }
+        showAlert('Pago', 'Pago registrado. El pedido quedó como entregado.');
+        router.replace('/(repartidor)/pedidos');
+        return;
+      }
       showAlert('Pago', 'Pago registrado.');
       cargar();
     } catch (e) {
@@ -228,6 +264,18 @@ export default function PedidoDetalleRepartidor() {
 
       <View style={styles.card}>
         <Text style={styles.seccion}>Registrar pago</Text>
+        {pedido.pagos.map((pago) => (
+          <Text key={pago.id} style={styles.sub}>
+            ${pago.monto.toFixed(2)} · {pago.metodo ? METODO_PAGO_LABEL[pago.metodo] : 'Sin método'} ·{' '}
+            {new Date(pago.fecha).toLocaleString('es-AR')}
+          </Text>
+        ))}
+        <Text style={styles.sub}>
+          Pagado ${montoPagado.toFixed(2)} · Pendiente ${pendiente.toFixed(2)}
+        </Text>
+        {pedido.estado === 'cargado' ? (
+          <Text style={styles.sub}>Al impactar el pago, el pedido queda como entregado.</Text>
+        ) : null}
         <Input label="Monto ($)" value={monto} onChangeText={setMonto} keyboardType="decimal-pad" />
         <MetodoPagoSelector
           metodo={metodoPago}

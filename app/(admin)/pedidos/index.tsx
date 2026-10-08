@@ -13,6 +13,13 @@ import { ESTADO_PEDIDO_LABEL, type EstadoPedido, type Pedido } from '@/types';
 
 const FILTROS: (EstadoPedido | 'todos')[] = ['todos', 'pendiente', 'armado', 'cargado', 'entregado'];
 
+const ESTADO_BADGE: Record<EstadoPedido, { backgroundColor: string; color: string }> = {
+  pendiente: { backgroundColor: '#ece7e2', color: '#5c524c' },
+  armado: { backgroundColor: '#dfeafc', color: '#1f4e9a' },
+  cargado: { backgroundColor: '#fff2d6', color: '#9a6a00' },
+  entregado: { backgroundColor: '#dff5e1', color: '#1f7a3d' },
+};
+
 function aFechaCorta(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -138,26 +145,37 @@ export default function PedidosIndex() {
           <Pressable key={p.id} style={styles.card} onPress={() => router.push(`/(admin)/pedidos/${p.id}`)}>
             <Text style={styles.cliente}>{p.clienteNombre}</Text>
             <Text style={styles.sub}>
-              {formatoFechaCorta(p.fecha)} · {ESTADO_PEDIDO_LABEL[p.estado]} · Repartidor: {p.repartidorNombre ?? p.repartidor}
+              {formatoFechaCorta(p.fecha)} · Repartidor: {p.repartidorNombre ?? p.repartidor}
             </Text>
-            {p.estado === "entregado" ? (
-              <Text
-                style={[
-                  styles.estadoPago,
-                  montoPagado >= total
-                    ? styles.estadoPagoOk
-                    : montoPagado > 0
-                      ? styles.estadoPagoParcial
-                      : styles.estadoPagoDeuda,
-                ]}
-              >
-                {montoPagado >= total
-                  ? "PAGADO"
-                  : montoPagado > 0
-                    ? `PARCIAL: $${montoPagado.toFixed(0)} de $${total.toFixed(0)}`
-                    : "SIN PAGAR"}
+            <View style={styles.badges}>
+              <Text style={[styles.badge, ESTADO_BADGE[p.estado]]}>
+                {ESTADO_PEDIDO_LABEL[p.estado].toUpperCase()}
               </Text>
-            ) : null}
+              {total > 0 ? (
+                <Text
+                  style={[
+                    styles.badge,
+                    montoPagado >= total
+                      ? styles.estadoPagoOk
+                      : montoPagado > 0
+                        ? styles.estadoPagoParcial
+                        : styles.estadoPagoDeuda,
+                  ]}
+                >
+                  {montoPagado >= total
+                    ? "PAGADO"
+                    : montoPagado > 0
+                      ? `PAGO PARCIAL: $${montoPagado.toFixed(0)} de $${total.toFixed(0)}`
+                      : "SIN PAGAR"}
+                </Text>
+              ) : null}
+            </View>
+            <Text style={styles.sub}>
+              Total ${total.toFixed(0)}
+              {p.estado === "entregado" && p.entregadoEn
+                ? ` · Entregado el ${formatoFechaCorta(p.entregadoEn)}`
+                : ""}
+            </Text>
           </Pressable>
         );
       })}
@@ -183,11 +201,10 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: 14, padding: 14, gap: 4, marginBottom: 8 },
   cliente: { fontFamily: 'Poppins_700Bold', fontSize: 15, color: COLORS.grisTexto },
   sub: { fontFamily: 'Poppins_400Regular', fontSize: 12, color: COLORS.grisSecundario },
-  estadoPago: {
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  badge: {
     fontFamily: 'Poppins_700Bold',
     fontSize: 11,
-    marginTop: 6,
-    alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,

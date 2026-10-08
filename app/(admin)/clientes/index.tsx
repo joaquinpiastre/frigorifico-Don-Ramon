@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { showAlert } from '@/utils/alert';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -122,7 +122,7 @@ export default function ClientesIndex() {
         {clientesFiltrados.length} de {clientes.length} clientes
       </Text>
 
-      <ScrollView style={{ marginTop: 4 }}>
+      <View style={{ marginTop: 4 }}>
         {clientesFiltrados.length === 0 ? (
           <Text style={styles.vacio}>
             {busqueda.trim() ? `Sin resultados para "${busqueda.trim()}".` : 'No hay clientes registrados.'}
@@ -145,7 +145,7 @@ export default function ClientesIndex() {
             </Pressable>
           ))
         )}
-      </ScrollView>
+      </View>
     </Screen>
   );
 }
