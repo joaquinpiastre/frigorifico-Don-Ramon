@@ -3,14 +3,15 @@ import { router } from "expo-router";
 import { useRef } from "react";
 import {
   Image,
-  ImageBackground,
   Linking,
   Platform,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   View,
+  ViewStyle,
   useWindowDimensions,
 } from "react-native";
 import { COLORS } from "@/constants/colors";
@@ -133,6 +134,24 @@ function irAlLogin() {
   router.push("/(auth)/login");
 }
 
+// Fondo con foto que cubre todo el bloque (ImageBackground se desborda en web).
+function FondoFoto({
+  source,
+  style,
+  children,
+}: {
+  source: number;
+  style?: StyleProp<ViewStyle>;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={[styles.fondoFoto, style]}>
+      <Image source={source} style={styles.fondoFotoImg} resizeMode="cover" />
+      {children}
+    </View>
+  );
+}
+
 type SeccionId = "productos" | "galeria" | "contacto";
 
 export default function LandingPage() {
@@ -199,10 +218,9 @@ export default function LandingPage() {
         </View>
 
         {/* Hero */}
-        <ImageBackground
+        <FondoFoto
           source={FOTOS.vacuno1}
           style={[styles.hero, esEscritorio && styles.heroGrande]}
-          imageStyle={styles.heroImagen}
         >
           <View style={styles.heroVelo} />
           <View style={styles.heroContenido}>
@@ -235,7 +253,7 @@ export default function LandingPage() {
               </Pressable>
             </View>
           </View>
-        </ImageBackground>
+        </FondoFoto>
 
         {/* Franja de datos */}
         <View style={styles.franja}>
@@ -366,11 +384,7 @@ export default function LandingPage() {
         </View>
 
         {/* CTA */}
-        <ImageBackground
-          source={FOTOS.vacuno7}
-          style={styles.cta}
-          imageStyle={styles.heroImagen}
-        >
+        <FondoFoto source={FOTOS.vacuno7} style={styles.cta}>
           <View style={styles.heroVelo} />
           <View style={styles.ctaContenido}>
             <Text style={[styles.titulo, styles.tituloClaro]}>
@@ -387,7 +401,7 @@ export default function LandingPage() {
               <Text style={styles.botonPrimarioTexto}>Escribir por WhatsApp</Text>
             </Pressable>
           </View>
-        </ImageBackground>
+        </FondoFoto>
 
         {/* Contacto */}
         <View
@@ -534,7 +548,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.negro,
   },
   heroGrande: { minHeight: 640 },
-  heroImagen: { opacity: 1 },
+  fondoFoto: { overflow: "hidden", position: "relative" },
+  fondoFotoImg: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  },
   heroVelo: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(11,10,8,0.68)",
